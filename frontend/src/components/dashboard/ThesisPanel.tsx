@@ -1,0 +1,50 @@
+import type { ThesisDashboardData } from "../../types";
+import { getThesisAccent } from "../../utils/colors";
+import { formatPct } from "../../utils/formatting";
+import { SignalGauge } from "./SignalGauge";
+import { TrendChart } from "./TrendChart";
+import { EvidenceList } from "./EvidenceList";
+
+interface ThesisPanelProps {
+  thesis: ThesisDashboardData;
+}
+
+export function ThesisPanel({ thesis }: ThesisPanelProps) {
+  const accent = getThesisAccent(thesis.thesis_id);
+
+  return (
+    <section className="thesis-panel" style={{ borderTopColor: accent }}>
+      <div className="thesis-panel__header">
+        <h2 className="thesis-name" style={{ color: accent }}>
+          {thesis.thesis_name}
+        </h2>
+        <p className="thesis-description">{thesis.thesis_description}</p>
+        <div className="thesis-stats">
+          <span className="stat">
+            <strong>{thesis.signal_count_7d}</strong> signals (7d)
+          </span>
+          <span className="stat">
+            <strong>{formatPct(thesis.supporting_pct)}</strong> supporting
+          </span>
+        </div>
+      </div>
+
+      <div className="thesis-panel__gauge">
+        <SignalGauge
+          score={thesis.current_score}
+          trend={thesis.score_trend}
+          previousScore={thesis.previous_score}
+          accent={accent}
+        />
+      </div>
+
+      <div className="thesis-panel__chart">
+        <TrendChart data={thesis.trend_data} accent={accent} />
+      </div>
+
+      <div className="thesis-panel__evidence">
+        <EvidenceList signals={thesis.recent_signals} />
+      </div>
+    </section>
+  );
+}
