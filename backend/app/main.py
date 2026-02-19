@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,6 +19,18 @@ logging.basicConfig(
 )
 
 
+async def _initial_ingestion(db):
+    """Run initial ingestion as a background task (doesn't block server start)."""
+    await asyncio.sleep(5)  # Let the server fully start first
+    try:
+        logging.info("Running initial article ingestion (background)...")
+        ingestion_svc = IngestionService(db)
+        stats = await ingestion_svc.run_full_ingestion()
+        logging.info(f"Initial ingestion complete: {stats}")
+    except Exception as e:
+        logging.error(f"Initial ingestion failed (will retry on schedule): {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -33,19 +46,15 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     app.state.scheduler = scheduler
 
-    logging.info("Signal Dashboard backend started")
+    logging.info("Signal Dashboard backend started — ready for requests")
 
-    # Run initial ingestion in background on startup
-    try:
-        logging.info("Running initial article ingestion...")
-        ingestion_svc = IngestionService(db)
-        stats = await ingestion_svc.run_full_ingestion()
-        logging.info(f"Initial ingestion complete: {stats}")
-    except Exception as e:
-        logging.error(f"Initial ingestion failed (will retry on schedule): {e}")
+    # Kick off initial ingestion without blocking the server
+    ingestion_task = asyncio.create_task(_initial_ingestion(db))
+
     yield
 
     # Shutdown
+    ingestion_task.cancel()
     scheduler.shutdown(wait=False)
     await db.close()
     logging.info("Signal Dashboard backend stopped")
