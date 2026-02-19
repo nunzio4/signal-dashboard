@@ -483,66 +483,95 @@ async def load_seed_data(db: aiosqlite.Connection):
     # Find the seed file
     seed_path = _backend_dir / "seed_data.json"
     if not seed_path.exists():
-        logger.info("No seed_data.json found, starting fresh")
+        logger.info(f"No seed_data.json found at {seed_path}, starting fresh")
         return
 
-    logger.info(f"Loading seed data from {seed_path}...")
-    data = json.loads(seed_path.read_text())
+    logger.info(f"Loading seed data from {seed_path} ({seed_path.stat().st_size // 1024} KB)...")
+    try:
+        data = json.loads(seed_path.read_text())
+    except Exception as e:
+        logger.error(f"Failed to parse seed_data.json: {e}")
+        return
+
+    errors = 0
 
     # 1. Articles (must go first — signals reference them)
     articles = data.get("articles", [])
     for a in articles:
-        await db.execute(
-            """INSERT OR IGNORE INTO articles
-               (id, source_id, external_id, title, url, author, content,
-                published_at, ingested_at, analysis_status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (a["id"], a.get("source_id"), a.get("external_id"), a["title"],
-             a.get("url"), a.get("author"), a.get("content"),
-             a.get("published_at"), a.get("ingested_at", ""), a.get("analysis_status", "analyzed")),
-        )
-    logger.info(f"  Loaded {len(articles)} articles")
+        try:
+            await db.execute(
+                """INSERT OR IGNORE INTO articles
+                   (id, source_id, external_id, title, url, author, content,
+                    published_at, ingested_at, analysis_status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (a.get("id"), a.get("source_id"), a.get("external_id"),
+                 a.get("title", ""), a.get("url"), a.get("author"),
+                 a.get("content"), a.get("published_at"),
+                 a.get("ingested_at", ""), a.get("analysis_status", "analyzed")),
+            )
+        except Exception as e:
+            errors += 1
+            if errors <= 3:
+                logger.warning(f"  Skip article: {e}")
+    logger.info(f"  Loaded {len(articles)} articles ({errors} errors)")
 
     # 2. Signals
     signals = data.get("signals", [])
+    sig_errors = 0
     for s in signals:
-        await db.execute(
-            """INSERT OR IGNORE INTO signals
-               (id, article_id, thesis_id, direction, strength, confidence,
-                evidence_quote, reasoning, source_title, source_url,
-                signal_date, created_at, is_manual)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (s["id"], s.get("article_id"), s["thesis_id"], s["direction"],
-             s["strength"], s["confidence"], s.get("evidence_quote", ""),
-             s.get("reasoning", ""), s.get("source_title"), s.get("source_url"),
-             s["signal_date"], s.get("created_at", ""), s.get("is_manual", 0)),
-        )
-    logger.info(f"  Loaded {len(signals)} signals")
+        try:
+            await db.execute(
+                """INSERT OR IGNORE INTO signals
+                   (id, article_id, thesis_id, direction, strength, confidence,
+                    evidence_quote, reasoning, source_title, source_url,
+                    signal_date, created_at, is_manual)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (s.get("id"), s.get("article_id"), s.get("thesis_id", ""),
+                 s.get("direction", ""), s.get("strength", 0),
+                 s.get("confidence", 0), s.get("evidence_quote", ""),
+                 s.get("reasoning", ""), s.get("source_title"),
+                 s.get("source_url"), s.get("signal_date", ""),
+                 s.get("created_at", ""), s.get("is_manual", 0)),
+            )
+        except Exception as e:
+            sig_errors += 1
+            if sig_errors <= 3:
+                logger.warning(f"  Skip signal: {e}")
+    logger.info(f"  Loaded {len(signals)} signals ({sig_errors} errors)")
 
     # 3. Daily scores (trend charts)
     scores = data.get("daily_scores", [])
     for ds in scores:
-        await db.execute(
-            """INSERT OR IGNORE INTO daily_scores
-               (id, thesis_id, score_date, composite_score, signal_count,
-                supporting_count, weakening_count, computed_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (ds["id"], ds["thesis_id"], ds["score_date"], ds["composite_score"],
-             ds["signal_count"], ds["supporting_count"], ds["weakening_count"],
-             ds.get("computed_at", "")),
-        )
+        try:
+            await db.execute(
+                """INSERT OR IGNORE INTO daily_scores
+                   (id, thesis_id, score_date, composite_score, signal_count,
+                    supporting_count, weakening_count, computed_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (ds.get("id"), ds.get("thesis_id", ""), ds.get("score_date", ""),
+                 ds.get("composite_score", 0), ds.get("signal_count", 0),
+                 ds.get("supporting_count", 0), ds.get("weakening_count", 0),
+                 ds.get("computed_at", "")),
+            )
+        except Exception:
+            pass
     logger.info(f"  Loaded {len(scores)} daily scores")
 
     # 4. Data points (data series charts)
     points = data.get("data_points", [])
+    dp_errors = 0
     for dp in points:
-        await db.execute(
-            """INSERT OR IGNORE INTO data_points
-               (series_id, date, value, fetched_at)
-               VALUES (?, ?, ?, ?)""",
-            (dp["series_id"], dp["date"], dp["value"], dp.get("fetched_at", "")),
-        )
-    logger.info(f"  Loaded {len(points)} data points")
+        try:
+            await db.execute(
+                """INSERT OR IGNORE INTO data_points
+                   (series_id, date, value, fetched_at)
+                   VALUES (?, ?, ?, ?)""",
+                (dp.get("series_id", ""), dp.get("date", ""),
+                 dp.get("value", 0), dp.get("fetched_at", "")),
+            )
+        except Exception:
+            dp_errors += 1
+    logger.info(f"  Loaded {len(points)} data points ({dp_errors} errors)")
 
     await db.commit()
     logger.info("Seed data loaded successfully!")
