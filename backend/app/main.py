@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.database import get_db, init_database, seed_theses, seed_sources, seed_data_series
+from app.database import get_db, init_database, seed_theses, seed_sources, seed_data_series, load_seed_data
 from app.services.scheduler import create_scheduler
 from app.services.ingestion import IngestionService
 
@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI):
     await seed_theses(db)
     await seed_sources(db)
     await seed_data_series(db)
+    await load_seed_data(db)
     app.state.db = db
 
     scheduler = create_scheduler(db)

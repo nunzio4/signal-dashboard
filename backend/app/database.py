@@ -462,3 +462,87 @@ async def seed_sources(db: aiosqlite.Connection):
             source,
         )
     await db.commit()
+
+
+async def load_seed_data(db: aiosqlite.Connection):
+    """Load historical data from seed_data.json on first run (production deploy).
+
+    Seeds: daily_scores (trend charts), recent signals + articles (evidence cards),
+    and data_points (data series charts). Skips if data already exists.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Check if we already have data
+    cursor = await db.execute("SELECT COUNT(*) as cnt FROM daily_scores")
+    row = await cursor.fetchone()
+    if row["cnt"] > 0:
+        logger.info("Database already has historical data, skipping seed_data.json")
+        return
+
+    # Find the seed file
+    seed_path = _backend_dir / "seed_data.json"
+    if not seed_path.exists():
+        logger.info("No seed_data.json found, starting fresh")
+        return
+
+    logger.info(f"Loading seed data from {seed_path}...")
+    data = json.loads(seed_path.read_text())
+
+    # 1. Articles (must go first — signals reference them)
+    articles = data.get("articles", [])
+    for a in articles:
+        await db.execute(
+            """INSERT OR IGNORE INTO articles
+               (id, source_id, external_id, title, url, author, content,
+                published_at, ingested_at, analysis_status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (a["id"], a.get("source_id"), a.get("external_id"), a["title"],
+             a.get("url"), a.get("author"), a.get("content"),
+             a.get("published_at"), a.get("ingested_at", ""), a.get("analysis_status", "analyzed")),
+        )
+    logger.info(f"  Loaded {len(articles)} articles")
+
+    # 2. Signals
+    signals = data.get("signals", [])
+    for s in signals:
+        await db.execute(
+            """INSERT OR IGNORE INTO signals
+               (id, article_id, thesis_id, direction, strength, confidence,
+                evidence_quote, reasoning, source_title, source_url,
+                signal_date, created_at, is_manual)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (s["id"], s.get("article_id"), s["thesis_id"], s["direction"],
+             s["strength"], s["confidence"], s.get("evidence_quote", ""),
+             s.get("reasoning", ""), s.get("source_title"), s.get("source_url"),
+             s["signal_date"], s.get("created_at", ""), s.get("is_manual", 0)),
+        )
+    logger.info(f"  Loaded {len(signals)} signals")
+
+    # 3. Daily scores (trend charts)
+    scores = data.get("daily_scores", [])
+    for ds in scores:
+        await db.execute(
+            """INSERT OR IGNORE INTO daily_scores
+               (id, thesis_id, score_date, composite_score, signal_count,
+                supporting_count, weakening_count, computed_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (ds["id"], ds["thesis_id"], ds["score_date"], ds["composite_score"],
+             ds["signal_count"], ds["supporting_count"], ds["weakening_count"],
+             ds.get("computed_at", "")),
+        )
+    logger.info(f"  Loaded {len(scores)} daily scores")
+
+    # 4. Data points (data series charts)
+    points = data.get("data_points", [])
+    for dp in points:
+        await db.execute(
+            """INSERT OR IGNORE INTO data_points
+               (series_id, date, value, fetched_at)
+               VALUES (?, ?, ?, ?)""",
+            (dp["series_id"], dp["date"], dp["value"], dp.get("fetched_at", "")),
+        )
+    logger.info(f"  Loaded {len(points)} data points")
+
+    await db.commit()
+    logger.info("Seed data loaded successfully!")
