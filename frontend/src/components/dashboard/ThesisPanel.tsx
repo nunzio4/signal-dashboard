@@ -4,6 +4,7 @@ import { formatPct } from "../../utils/formatting";
 import { SignalGauge } from "./SignalGauge";
 import { TrendChart } from "./TrendChart";
 import { EvidenceList } from "./EvidenceList";
+import { DataSeriesPanel } from "./DataSeriesPanel";
 
 interface ThesisPanelProps {
   thesis: ThesisDashboardData;
@@ -42,8 +43,13 @@ export function ThesisPanel({ thesis }: ThesisPanelProps) {
         <TrendChart data={thesis.trend_data} accent={accent} />
       </div>
 
-      <div className="thesis-panel__evidence">
-        <EvidenceList signals={thesis.recent_signals} />
+      <div className="thesis-panel__evidence-row">
+        <div className="thesis-panel__evidence">
+          <EvidenceList signals={thesis.recent_signals} />
+        </div>
+        <div className="thesis-panel__data-series">
+          <DataSeriesPanel thesisId={thesis.thesis_id} accentColor={accent} />
+        </div>
       </div>
     </section>
   );

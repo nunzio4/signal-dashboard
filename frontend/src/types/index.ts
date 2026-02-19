@@ -68,3 +68,24 @@ export interface IngestionStatus {
   articles_analyzed: number;
   sources_enabled: number;
 }
+
+// ── Data Series types ──
+
+export interface DataPoint {
+  date: string;
+  value: number;
+}
+
+export interface DataSeriesWithData {
+  id: string;
+  name: string;
+  description: string;
+  unit: string;
+  direction_logic: "higher_supporting" | "lower_supporting";
+  provider: string;
+  last_fetched_at: string | null;
+  latest_value: number | null;
+  previous_value: number | null;
+  change_pct: number | null;
+  points: DataPoint[];
+}

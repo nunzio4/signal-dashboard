@@ -17,7 +17,7 @@ export function EvidenceList({ signals }: EvidenceListProps) {
 
   return (
     <div className="evidence-list">
-      <h4 className="evidence-list-title">Recent Evidence ({signals.length})</h4>
+      <h4 className="evidence-list-title">Strongest Signals — Last 24h ({signals.length})</h4>
       <div className="evidence-scroll">
         {signals.map((signal) => (
           <EvidenceCard key={signal.id} signal={signal} />

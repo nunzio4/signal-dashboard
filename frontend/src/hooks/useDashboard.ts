@@ -8,6 +8,7 @@ import {
   createSource,
   updateSource,
   deleteSource,
+  fetchDataSeriesByThesis,
 } from "../api/dashboard";
 import type { ManualSignalCreate } from "../types";
 import type { CreateSourcePayload, UpdateSourcePayload } from "../api/dashboard";
@@ -89,5 +90,15 @@ export function useDeleteSource() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sources"] });
     },
+  });
+}
+
+// ── Data Series hooks ──
+
+export function useDataSeriesByThesis(thesisId: string, days = 365) {
+  return useQuery({
+    queryKey: ["dataSeries", thesisId, days],
+    queryFn: () => fetchDataSeriesByThesis(thesisId, days),
+    staleTime: 10 * 60 * 1000,  // 10 minutes
   });
 }

@@ -1,5 +1,5 @@
 import client from "./client";
-import type { DashboardResponse, ManualSignalCreate, Signal, IngestionStatus, Source } from "../types";
+import type { DashboardResponse, ManualSignalCreate, Signal, IngestionStatus, Source, DataSeriesWithData } from "../types";
 
 export async function fetchDashboard(days: number = 30): Promise<DashboardResponse> {
   const { data } = await client.get<DashboardResponse>("/dashboard", {
@@ -61,4 +61,18 @@ export async function updateSource(sourceId: number, updates: UpdateSourcePayloa
 
 export async function deleteSource(sourceId: number): Promise<void> {
   await client.delete(`/sources/${sourceId}`);
+}
+
+// ── Data Series API ──
+
+export async function fetchDataSeriesByThesis(thesisId: string, days = 365): Promise<DataSeriesWithData[]> {
+  const { data } = await client.get<DataSeriesWithData[]>(`/data-series/by-thesis/${thesisId}`, {
+    params: { days },
+  });
+  return data;
+}
+
+export async function triggerDataSeriesFetch(): Promise<unknown> {
+  const { data } = await client.post("/data-series/fetch");
+  return data;
 }

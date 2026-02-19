@@ -1,0 +1,107 @@
+from fastapi import APIRouter, Request, Query
+
+router = APIRouter(prefix="/data-series", tags=["data-series"])
+
+
+@router.get("")
+async def list_data_series(request: Request, thesis_id: str | None = None):
+    """List all data series, optionally filtered by thesis."""
+    db = request.app.state.db
+
+    if thesis_id:
+        cursor = await db.execute(
+            "SELECT * FROM data_series WHERE thesis_id = ? ORDER BY name", (thesis_id,)
+        )
+    else:
+        cursor = await db.execute("SELECT * FROM data_series ORDER BY thesis_id, name")
+
+    rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
+
+
+@router.get("/{series_id}/points")
+async def get_data_points(
+    request: Request,
+    series_id: str,
+    days: int = Query(default=365, ge=30, le=1825),
+):
+    """Get data points for a specific series."""
+    db = request.app.state.db
+
+    from datetime import datetime, timedelta
+    start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    cursor = await db.execute(
+        """SELECT date, value FROM data_points
+           WHERE series_id = ? AND date >= ?
+           ORDER BY date ASC""",
+        (series_id, start_date),
+    )
+    rows = await cursor.fetchall()
+    return [{"date": r["date"], "value": r["value"]} for r in rows]
+
+
+@router.get("/by-thesis/{thesis_id}")
+async def get_series_with_data(
+    request: Request,
+    thesis_id: str,
+    days: int = Query(default=365, ge=30, le=1825),
+):
+    """Get all data series for a thesis, each with their recent data points."""
+    db = request.app.state.db
+
+    from datetime import datetime, timedelta
+    start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    series_cursor = await db.execute(
+        "SELECT * FROM data_series WHERE thesis_id = ? AND enabled = 1 ORDER BY name",
+        (thesis_id,),
+    )
+    series_list = await series_cursor.fetchall()
+
+    result = []
+    for series in series_list:
+        points_cursor = await db.execute(
+            """SELECT date, value FROM data_points
+               WHERE series_id = ? AND date >= ?
+               ORDER BY date ASC""",
+            (series["id"], start_date),
+        )
+        points = await points_cursor.fetchall()
+
+        # Compute latest value and change
+        latest = None
+        previous = None
+        change_pct = None
+        if points:
+            latest = points[-1]["value"]
+            if len(points) >= 2:
+                previous = points[-2]["value"]
+                if previous and previous != 0:
+                    change_pct = round(((latest - previous) / abs(previous)) * 100, 2)
+
+        result.append({
+            "id": series["id"],
+            "name": series["name"],
+            "description": series["description"],
+            "unit": series["unit"],
+            "direction_logic": series["direction_logic"],
+            "provider": series["provider"],
+            "last_fetched_at": series["last_fetched_at"],
+            "latest_value": latest,
+            "previous_value": previous,
+            "change_pct": change_pct,
+            "points": [{"date": p["date"], "value": p["value"]} for p in points],
+        })
+
+    return result
+
+
+@router.post("/fetch")
+async def trigger_data_fetch(request: Request):
+    """Manually trigger data series fetching."""
+    db = request.app.state.db
+    from app.services.data_series import DataSeriesFetcher
+    fetcher = DataSeriesFetcher(db)
+    stats = await fetcher.fetch_all()
+    return stats

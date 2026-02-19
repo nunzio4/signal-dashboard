@@ -14,6 +14,8 @@ if _env_path.exists():
 class Settings(BaseSettings):
     anthropic_api_key: str = ""
     newsapi_key: str = ""
+    fred_api_key: str = ""
+    bls_api_key: str = ""
     database_path: str = "data/signals.db"
     cors_origins: list[str] = [
         "http://localhost:5173",

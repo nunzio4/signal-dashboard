@@ -29,3 +29,7 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 NUL
+
+# Claude / Vite cache
+.claude/
+.vite/

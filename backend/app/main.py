@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.database import get_db, init_database, seed_theses, seed_sources
+from app.database import get_db, init_database, seed_theses, seed_sources, seed_data_series
 from app.services.scheduler import create_scheduler
 from app.services.ingestion import IngestionService
 
@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
     await init_database(db)
     await seed_theses(db)
     await seed_sources(db)
+    await seed_data_series(db)
     app.state.db = db
 
     scheduler = create_scheduler(db)
@@ -60,13 +61,14 @@ app.add_middleware(
 )
 
 # Mount routers
-from app.routers import dashboard, signals, articles, sources, ingest  # noqa: E402
+from app.routers import dashboard, signals, articles, sources, ingest, data_series  # noqa: E402
 
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(signals.router, prefix="/api")
 app.include_router(articles.router, prefix="/api")
 app.include_router(sources.router, prefix="/api")
 app.include_router(ingest.router, prefix="/api")
+app.include_router(data_series.router, prefix="/api")
 
 
 @app.get("/api/health")

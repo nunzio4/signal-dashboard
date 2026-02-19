@@ -27,6 +27,16 @@ class AnalysisService:
 
         client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
+        # Auto-retry: reset articles that errored more than 1 hour ago
+        retry_cursor = await self.db.execute(
+            """UPDATE articles SET analysis_status = 'pending'
+               WHERE analysis_status = 'error'
+                 AND ingested_at < datetime('now', '-1 hour')"""
+        )
+        if retry_cursor.rowcount > 0:
+            await self.db.commit()
+            logger.info(f"Reset {retry_cursor.rowcount} errored articles for retry")
+
         # Fetch pending articles — title alone is enough (min 10 chars)
         cursor = await self.db.execute(
             """SELECT id, title, url, content, published_at

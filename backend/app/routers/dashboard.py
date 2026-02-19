@@ -34,15 +34,17 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
         trend_data = await agg.get_trend_data(tid, days)
         trend_dir = AggregationService.compute_trend_direction(trend_data)
 
-        # Recent signals for this thesis
+        # Top 10 strongest signals from the trailing 24 hours
+        cutoff_24h = (datetime.utcnow() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
         sig_cursor = await db.execute(
             """SELECT id, thesis_id, direction, strength, confidence,
                       evidence_quote, reasoning, source_title, source_url,
                       signal_date, is_manual, created_at
                FROM signals WHERE thesis_id = ?
-               ORDER BY signal_date DESC, created_at DESC
+                 AND created_at >= ?
+               ORDER BY strength DESC, confidence DESC
                LIMIT 10""",
-            (tid,),
+            (tid, cutoff_24h),
         )
         sig_rows = await sig_cursor.fetchall()
         recent_signals = [
