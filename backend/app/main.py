@@ -3,7 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -122,8 +122,40 @@ app.include_router(data_series.router, prefix="/api")
 
 
 @app.get("/api/health")
-async def health():
-    return {"status": "ok"}
+async def health(request: Request):
+    """Health check with diagnostic info."""
+    from pathlib import Path
+    diag = {"status": "ok"}
+    try:
+        db = request.app.state.db
+        if db:
+            cur = await db.execute("SELECT COUNT(*) as c FROM daily_scores")
+            row = await cur.fetchone()
+            diag["daily_scores"] = row["c"]
+
+            cur2 = await db.execute("SELECT COUNT(*) as c FROM signals")
+            row2 = await cur2.fetchone()
+            diag["signals"] = row2["c"]
+
+            cur3 = await db.execute("SELECT COUNT(*) as c FROM data_points")
+            row3 = await cur3.fetchone()
+            diag["data_points"] = row3["c"]
+
+            cur4 = await db.execute("SELECT COUNT(*) as c FROM articles")
+            row4 = await cur4.fetchone()
+            diag["articles"] = row4["c"]
+
+        # Check if seed file exists
+        from app.config import settings
+        backend_dir = Path(settings.static_dir).parent
+        seed_path = backend_dir / "seed_data.json"
+        diag["seed_file_exists"] = seed_path.exists()
+        if seed_path.exists():
+            diag["seed_file_size_kb"] = seed_path.stat().st_size // 1024
+        diag["backend_dir"] = str(backend_dir)
+    except Exception as e:
+        diag["diag_error"] = str(e)
+    return diag
 
 
 # ── Serve React frontend in production ──
