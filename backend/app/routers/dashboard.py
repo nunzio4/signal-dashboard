@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Query, Request
@@ -10,6 +11,29 @@ from app.models import (
     TrendPoint,
 )
 from app.services.aggregation import AggregationService
+
+
+def _normalize_quote(quote: str) -> str:
+    """Normalize a quote for fuzzy dedup: lowercase, strip punctuation/hyphens, collapse whitespace."""
+    if not quote:
+        return ""
+    q = quote.lower()
+    q = re.sub(r"[^a-z0-9\s]", " ", q)  # strip non-alphanumeric
+    q = re.sub(r"\s+", " ", q).strip()
+    return q
+
+
+def _normalize_title(title: str) -> str:
+    """Normalize a title for dedup: strip trailing source attribution
+    (e.g. ' - Fortune', ' - AOL.com', ' | WSJ'), lowercase, strip punctuation."""
+    if not title:
+        return ""
+    # Strip trailing " - Source Name" or " | Source Name"
+    t = re.sub(r"\s*[\-–—|]\s*[A-Za-z][A-Za-z0-9 .,'&]+$", "", title)
+    t = t.lower()
+    t = re.sub(r"[^a-z0-9\s]", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -50,23 +74,38 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
         )
         sig_rows = await sig_cursor.fetchall()
 
-        # Deduplicate: skip signals whose source_url or evidence_quote
-        # we've already seen (keeps the strongest one, since rows are
-        # already sorted by strength DESC, confidence DESC).
+        # Deduplicate: skip signals that share any of:
+        #   - same source_url (exact)
+        #   - same normalized source_title (catches same article from different RSS feeds)
+        #   - same normalized evidence_quote (catches near-identical quotes with
+        #     minor punctuation differences like "cash flow" vs "cash-flow")
+        # Keeps the strongest signal since rows are sorted by strength DESC.
         seen_urls: set[str] = set()
+        seen_titles: set[str] = set()
         seen_quotes: set[str] = set()
         recent_signals: list[SignalResponse] = []
         for r in sig_rows:
             if len(recent_signals) >= 10:
                 break
             url = r["source_url"] or ""
+            title = r["source_title"] or ""
             quote = r["evidence_quote"] or ""
-            if (url and url in seen_urls) or (quote and quote in seen_quotes):
+            norm_title = _normalize_title(title)
+            norm_quote = _normalize_quote(quote)
+            # Skip if we've already seen this article (by URL or title)
+            # or this exact evidence (by normalized quote)
+            if url and url in seen_urls:
+                continue
+            if norm_title and norm_title in seen_titles:
+                continue
+            if norm_quote and norm_quote in seen_quotes:
                 continue
             if url:
                 seen_urls.add(url)
-            if quote:
-                seen_quotes.add(quote)
+            if norm_title:
+                seen_titles.add(norm_title)
+            if norm_quote:
+                seen_quotes.add(norm_quote)
             recent_signals.append(
                 SignalResponse(
                     id=r["id"],

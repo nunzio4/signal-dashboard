@@ -17,6 +17,16 @@ export function formatRelativeDate(dateStr: string): string {
   }
 }
 
+/** Format a backend UTC timestamp as a local absolute time, e.g. "Feb 20, 3:35 PM". */
+export function formatAbsoluteDate(dateStr: string): string {
+  try {
+    const date = parseUTC(dateStr);
+    return format(date, "MMM d, h:mm a");
+  } catch {
+    return dateStr;
+  }
+}
+
 export function formatShortDate(dateStr: string): string {
   try {
     const date = parseISO(dateStr);

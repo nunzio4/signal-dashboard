@@ -1,4 +1,4 @@
-import { formatRelativeDate } from "../../utils/formatting";
+import { formatAbsoluteDate, formatRelativeDate } from "../../utils/formatting";
 
 interface HeaderProps {
   lastIngestion: string | null;
@@ -70,8 +70,11 @@ export function Header({
 
       <div className="header-right">
         {lastRefresh && (
-          <span className="last-refresh" title={lastRefresh}>
-            Last refresh: {formatRelativeDate(lastRefresh)}
+          <span
+            className="last-refresh"
+            title={`${formatRelativeDate(lastRefresh)}`}
+          >
+            Last ingestion: {formatAbsoluteDate(lastRefresh)}
           </span>
         )}
         <button
