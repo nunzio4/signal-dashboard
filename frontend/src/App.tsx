@@ -29,6 +29,7 @@ function App() {
         newsSignals24h={data?.news_signals_24h ?? 0}
         totalDataSignals={data?.total_data_signals ?? 0}
         dataSignals24h={data?.data_signals_24h ?? 0}
+        predictionMarketSeries={data?.prediction_market_series ?? 0}
       />
 
       <nav className="tab-bar">

@@ -205,6 +205,12 @@ async def get_dashboard(request: Request, days: int = Query(default=270, ge=7, l
     )
     dp_24h = (await dp_24h_cursor.fetchone())["cnt"]
 
+    # Prediction market series count
+    pm_cursor = await db.execute(
+        "SELECT COUNT(*) as cnt FROM data_series WHERE provider IN ('polymarket', 'kalshi', 'metaculus') AND enabled = 1"
+    )
+    pm_count = (await pm_cursor.fetchone())["cnt"]
+
     last_cursor = await db.execute(
         "SELECT last_fetched_at FROM sources WHERE last_fetched_at IS NOT NULL ORDER BY last_fetched_at DESC LIMIT 1"
     )
@@ -249,4 +255,5 @@ async def get_dashboard(request: Request, days: int = Query(default=270, ge=7, l
         articles_24h=art_24h,
         total_data_points=dp_total,
         data_points_24h=dp_24h,
+        prediction_market_series=pm_count,
     )

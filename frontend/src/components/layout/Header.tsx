@@ -13,6 +13,7 @@ interface HeaderProps {
   newsSignals24h: number;
   totalDataSignals: number;
   dataSignals24h: number;
+  predictionMarketSeries: number;
 }
 
 /** Return the more recent of two ISO timestamps (or whichever is non-null). */
@@ -42,6 +43,7 @@ export function Header({
   newsSignals24h,
   totalDataSignals,
   dataSignals24h,
+  predictionMarketSeries,
 }: HeaderProps) {
   const lastRefresh = mostRecent(lastIngestion, lastDataFetch);
   const nextRefresh = earliest(nextIngestion, nextDataFetch);
@@ -110,6 +112,19 @@ export function Header({
             <div className="header-stat">
               <span className="stat-value stat-value--recent">{dataSignals24h}</span>
               <span className="stat-label">Past 24h</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="header-stats-separator" />
+
+        {/* Prediction Markets */}
+        <div className="header-stat-group">
+          <span className="stat-group-label">Prediction Markets</span>
+          <div className="stat-group-row">
+            <div className="header-stat">
+              <span className="stat-value">{predictionMarketSeries}</span>
+              <span className="stat-label">Markets</span>
             </div>
           </div>
         </div>

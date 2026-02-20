@@ -49,6 +49,7 @@ export interface DashboardResponse {
   articles_24h: number;
   total_data_points: number;
   data_points_24h: number;
+  prediction_market_series: number;
 }
 
 export interface ManualSignalCreate {

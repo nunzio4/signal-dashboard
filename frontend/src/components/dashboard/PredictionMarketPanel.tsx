@@ -113,6 +113,7 @@ function PredictionMarketCard({
             <span className="ds-card__change" style={{ color: changeColor }}>
               {series.change_pct > 0 ? "+" : ""}
               {series.change_pct.toFixed(1)}%
+              <span className="ds-card__change-period"> 30d</span>
             </span>
           )}
         </div>

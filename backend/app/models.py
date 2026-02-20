@@ -147,6 +147,7 @@ class DashboardResponse(BaseModel):
     articles_24h: int
     total_data_points: int
     data_points_24h: int
+    prediction_market_series: int = 0
 
 
 class SourceResponse(BaseModel):

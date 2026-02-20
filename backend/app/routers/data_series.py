@@ -103,6 +103,8 @@ async def get_series_with_data(
     )
     series_list = await series_cursor.fetchall()
 
+    PREDICTION_PROVIDERS = {"polymarket", "kalshi", "metaculus"}
+
     result = []
     for series in series_list:
         points_cursor = await db.execute(
@@ -113,16 +115,34 @@ async def get_series_with_data(
         )
         points = await points_cursor.fetchall()
 
+        provider = series["provider"]
+        is_prediction = provider in PREDICTION_PROVIDERS
+
         # Compute latest value and change
         latest = None
         previous = None
         change_pct = None
         if points:
             latest = points[-1]["value"]
-            if len(points) >= 2:
-                previous = points[-2]["value"]
-                if previous and previous != 0:
-                    change_pct = round(((latest - previous) / abs(previous)) * 100, 2)
+            if is_prediction:
+                # Use 30-day change for prediction markets
+                cutoff_30d = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d")
+                # Find the closest point to 30 days ago
+                baseline = None
+                for p in points:
+                    if p["date"] <= cutoff_30d:
+                        baseline = p["value"]
+                    else:
+                        break
+                if baseline is not None and baseline != 0:
+                    previous = baseline
+                    change_pct = round(((latest - baseline) / abs(baseline)) * 100, 2)
+            else:
+                # Day-over-day change for regular data series
+                if len(points) >= 2:
+                    previous = points[-2]["value"]
+                    if previous and previous != 0:
+                        change_pct = round(((latest - previous) / abs(previous)) * 100, 2)
 
         result.append({
             "id": series["id"],
