@@ -1,6 +1,30 @@
+import json
+
 from fastapi import APIRouter, Request, Query
 
 router = APIRouter(prefix="/data-series", tags=["data-series"])
+
+
+def _build_source_url(provider: str, series_config: str) -> str | None:
+    """Build a human-readable source URL from the provider and series_config."""
+    try:
+        cfg = json.loads(series_config)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+    if provider == "fred":
+        sid = cfg.get("series_id", "")
+        return f"https://fred.stlouisfed.org/series/{sid}" if sid else None
+    elif provider == "bls":
+        sid = cfg.get("series_id", "")
+        return f"https://data.bls.gov/timeseries/{sid}" if sid else None
+    elif provider == "sec_edgar":
+        ticker = cfg.get("ticker", "")
+        cik = cfg.get("cik", "")
+        if cik:
+            return f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}&type=10-Q"
+        return None
+    return None
 
 
 @router.get("")
@@ -16,7 +40,12 @@ async def list_data_series(request: Request, thesis_id: str | None = None):
         cursor = await db.execute("SELECT * FROM data_series ORDER BY thesis_id, name")
 
     rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["source_url"] = _build_source_url(d["provider"], d.get("series_config", ""))
+        result.append(d)
+    return result
 
 
 @router.get("/{series_id}/points")

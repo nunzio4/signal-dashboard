@@ -39,6 +39,8 @@ export interface DashboardResponse {
   theses: ThesisDashboardData[];
   last_ingestion: string | null;
   last_data_fetch: string | null;
+  next_ingestion: string | null;
+  next_data_fetch: string | null;
   total_articles: number;
   total_news_signals: number;
   total_data_signals: number;
@@ -84,6 +86,21 @@ export interface IngestionStatus {
 export interface DataPoint {
   date: string;
   value: number;
+}
+
+export interface DataSeries {
+  id: string;
+  name: string;
+  description: string;
+  thesis_id: string;
+  provider: string;
+  series_config: string;
+  unit: string;
+  direction_logic: "higher_supporting" | "lower_supporting";
+  enabled: boolean;
+  last_fetched_at: string | null;
+  created_at: string;
+  source_url: string | null;
 }
 
 export interface DataSeriesWithData {

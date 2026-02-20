@@ -165,14 +165,21 @@ a:hover {
 
 .header-right {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
   flex-shrink: 0;
 }
 
-.last-refresh {
-  font-size: 0.78rem;
+.header-timestamp {
+  font-size: 0.75rem;
   color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.header-timestamp--next {
+  color: var(--accent);
+  opacity: 0.85;
 }
 
 /* ═══════════════ MAIN CONTENT ═══════════════ */
@@ -775,7 +782,7 @@ a:hover {
     font-size: 1rem;
   }
 
-  .last-refresh {
+  .header-timestamp {
     display: none;
   }
 
@@ -855,9 +862,8 @@ a:hover {
     display: none;
   }
 
-  .refresh-btn {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.78rem;
+  .header-right {
+    display: none;
   }
 
   .tab-bar {
@@ -1254,6 +1260,91 @@ a:hover {
   text-align: right;
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+/* ═══════════════ DATA SERIES MANAGER ═══════════════ */
+
+.ds-thesis-group {
+  margin-top: 1.5rem;
+}
+
+.ds-thesis-group__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+}
+
+.ds-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ds-status-dot--on {
+  background: var(--accent);
+}
+
+.ds-status-dot--off {
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
+.ds-unit {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.ds-description-cell {
+  max-width: 300px;
+}
+
+.ds-description {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.ds-source-link-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ds-copy-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 2px 5px;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.ds-copy-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.feed-type-badge--fred {
+  background: rgba(0, 120, 180, 0.15);
+  color: #0088cc;
+}
+
+.feed-type-badge--bls {
+  background: rgba(0, 100, 0, 0.12);
+  color: #228B22;
+}
+
+.feed-type-badge--sec_edgar {
+  background: rgba(180, 120, 0, 0.12);
+  color: #cc8800;
 }
 
 /* ═══════════════ DATA SERIES PANEL ═══════════════ */

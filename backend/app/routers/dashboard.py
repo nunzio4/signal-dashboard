@@ -216,10 +216,27 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
     )
     ds_row = await ds_cursor.fetchone()
 
+    # Next scheduled ingestion times from APScheduler
+    next_ingestion_str = None
+    next_data_fetch_str = None
+    try:
+        scheduler = request.app.state.scheduler
+        if scheduler:
+            ing_job = scheduler.get_job("ingestion")
+            if ing_job and ing_job.next_run_time:
+                next_ingestion_str = ing_job.next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+            ds_job = scheduler.get_job("data_series")
+            if ds_job and ds_job.next_run_time:
+                next_data_fetch_str = ds_job.next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        pass
+
     return DashboardResponse(
         theses=thesis_data,
         last_ingestion=last_row["last_fetched_at"] if last_row else None,
         last_data_fetch=ds_row["last_fetched_at"] if ds_row else None,
+        next_ingestion=next_ingestion_str,
+        next_data_fetch=next_data_fetch_str,
         total_articles=art_count,
         total_news_signals=sig_split["news_total"] or 0,
         total_data_signals=sig_split["data_total"] or 0,

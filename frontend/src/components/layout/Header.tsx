@@ -3,6 +3,8 @@ import { formatAbsoluteDate, formatRelativeDate } from "../../utils/formatting";
 interface HeaderProps {
   lastIngestion: string | null;
   lastDataFetch: string | null;
+  nextIngestion: string | null;
+  nextDataFetch: string | null;
   totalArticles: number;
   articles24h: number;
   totalDataPoints: number;
@@ -11,8 +13,6 @@ interface HeaderProps {
   newsSignals24h: number;
   totalDataSignals: number;
   dataSignals24h: number;
-  onRefresh: () => void;
-  isRefreshing: boolean;
 }
 
 /** Return the more recent of two ISO timestamps (or whichever is non-null). */
@@ -22,9 +22,18 @@ function mostRecent(a: string | null, b: string | null): string | null {
   return a > b ? a : b;
 }
 
+/** Return the earliest of two ISO timestamps (or whichever is non-null). */
+function earliest(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a < b ? a : b;
+}
+
 export function Header({
   lastIngestion,
   lastDataFetch,
+  nextIngestion,
+  nextDataFetch,
   totalArticles,
   articles24h,
   totalDataPoints,
@@ -33,22 +42,21 @@ export function Header({
   newsSignals24h,
   totalDataSignals,
   dataSignals24h,
-  onRefresh,
-  isRefreshing,
 }: HeaderProps) {
   const lastRefresh = mostRecent(lastIngestion, lastDataFetch);
+  const nextRefresh = earliest(nextIngestion, nextDataFetch);
 
   return (
     <header className="app-header">
       <div className="header-left">
         <h1 className="app-title">
-          <span className="title-icon">◈</span> Signal Dashboard
+          <span className="title-icon">&#9672;</span> Signal Dashboard
         </h1>
         <p className="app-subtitle">Investment Thesis Monitor</p>
       </div>
 
       <div className="header-stats">
-        {/* News pipeline: Articles → News Signals */}
+        {/* News pipeline: Articles -> News Signals */}
         <div className="header-stat-group">
           <span className="stat-group-label">Articles</span>
           <div className="stat-group-row">
@@ -78,7 +86,7 @@ export function Header({
 
         <div className="header-stats-separator" />
 
-        {/* Data pipeline: Data Points → Data Signals */}
+        {/* Data pipeline: Data Points -> Data Signals */}
         <div className="header-stat-group">
           <span className="stat-group-label">Data Points</span>
           <div className="stat-group-row">
@@ -110,20 +118,20 @@ export function Header({
       <div className="header-right">
         {lastRefresh && (
           <span
-            className="last-refresh"
-            title={`${formatRelativeDate(lastRefresh)}`}
+            className="header-timestamp"
+            title={formatRelativeDate(lastRefresh)}
           >
             Last ingestion: {formatAbsoluteDate(lastRefresh)}
           </span>
         )}
-        <button
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          className="btn btn-outline refresh-btn"
-          title="Refresh RSS feeds and data series"
-        >
-          {isRefreshing ? "⟳ Refreshing…" : "↻ Refresh"}
-        </button>
+        {nextRefresh && (
+          <span
+            className="header-timestamp header-timestamp--next"
+            title={formatRelativeDate(nextRefresh)}
+          >
+            Next ingestion: {formatAbsoluteDate(nextRefresh)}
+          </span>
+        )}
       </div>
     </header>
   );

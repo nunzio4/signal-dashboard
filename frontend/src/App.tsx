@@ -1,30 +1,26 @@
 import { useState } from "react";
-import { useDashboardData, useRefreshAll } from "./hooks/useDashboard";
+import { useDashboardData } from "./hooks/useDashboard";
 import { AppShell } from "./components/layout/AppShell";
 import { Header } from "./components/layout/Header";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
 import { ManualSignalForm } from "./components/signals/ManualSignalForm";
 import { FeedManager } from "./components/feeds/FeedManager";
+import { DataSeriesManager } from "./components/feeds/DataSeriesManager";
 
-type Tab = "dashboard" | "feeds";
+type Tab = "dashboard" | "feeds" | "data-series";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const { data, isLoading, isError, error, refetch } =
     useDashboardData(30);
-  const refreshAll = useRefreshAll();
-
-  const handleRefresh = () => {
-    refreshAll.mutate(undefined, {
-      onSettled: () => refetch(),
-    });
-  };
 
   return (
     <AppShell>
       <Header
         lastIngestion={data?.last_ingestion ?? null}
         lastDataFetch={data?.last_data_fetch ?? null}
+        nextIngestion={data?.next_ingestion ?? null}
+        nextDataFetch={data?.next_data_fetch ?? null}
         totalArticles={data?.total_articles ?? 0}
         articles24h={data?.articles_24h ?? 0}
         totalDataPoints={data?.total_data_points ?? 0}
@@ -33,8 +29,6 @@ function App() {
         newsSignals24h={data?.news_signals_24h ?? 0}
         totalDataSignals={data?.total_data_signals ?? 0}
         dataSignals24h={data?.data_signals_24h ?? 0}
-        onRefresh={handleRefresh}
-        isRefreshing={refreshAll.isPending}
       />
 
       <nav className="tab-bar">
@@ -42,13 +36,19 @@ function App() {
           className={`tab-btn ${activeTab === "dashboard" ? "tab-btn--active" : ""}`}
           onClick={() => setActiveTab("dashboard")}
         >
-          <span className="tab-icon">◈</span> Dashboard
+          <span className="tab-icon">&#9672;</span> Dashboard
         </button>
         <button
           className={`tab-btn ${activeTab === "feeds" ? "tab-btn--active" : ""}`}
           onClick={() => setActiveTab("feeds")}
         >
-          <span className="tab-icon">⊞</span> News Feeds
+          <span className="tab-icon">&#8862;</span> News Feeds
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "data-series" ? "tab-btn--active" : ""}`}
+          onClick={() => setActiveTab("data-series")}
+        >
+          <span className="tab-icon">&#9636;</span> Data Series
         </button>
       </nav>
 
@@ -93,6 +93,7 @@ function App() {
         )}
 
         {activeTab === "feeds" && <FeedManager />}
+        {activeTab === "data-series" && <DataSeriesManager />}
       </main>
     </AppShell>
   );

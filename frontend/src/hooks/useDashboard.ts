@@ -9,6 +9,7 @@ import {
   createSource,
   updateSource,
   deleteSource,
+  fetchAllDataSeries,
   fetchDataSeriesByThesis,
 } from "../api/dashboard";
 import type { ManualSignalCreate } from "../types";
@@ -107,6 +108,14 @@ export function useDeleteSource() {
 }
 
 // ── Data Series hooks ──
+
+export function useAllDataSeries() {
+  return useQuery({
+    queryKey: ["dataSeries", "all"],
+    queryFn: fetchAllDataSeries,
+    staleTime: 60 * 1000,
+  });
+}
 
 export function useDataSeriesByThesis(thesisId: string, days = 365) {
   return useQuery({
