@@ -4,6 +4,9 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
+# VITE_ADMIN_API_KEY is baked into the JS bundle at build time
+ARG VITE_ADMIN_API_KEY=""
+ENV VITE_ADMIN_API_KEY=$VITE_ADMIN_API_KEY
 RUN npm run build
 
 # ── Stage 2: Python backend + serve built frontend ──

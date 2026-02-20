@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     newsapi_key: str = ""
     fred_api_key: str = ""
     bls_api_key: str = ""
+    admin_api_key: str = ""  # Required for write operations (POST/PUT/DELETE)
     database_path: str = "data/signals.db"
     cors_origins: list[str] = [
         "http://localhost:5173",

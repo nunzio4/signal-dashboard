@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 
+from app.auth import WriteProtectionMiddleware
 from app.config import settings
 
 logging.basicConfig(
@@ -113,12 +114,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Signal Dashboard API", lifespan=lifespan)
 
+# ── Security middleware ──
+# Write-protection: require X-API-Key for POST/PUT/DELETE
+app.add_middleware(WriteProtectionMiddleware)
+
+# CORS: only allow known origins (from config.py)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins — simplifies deployment
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
 
 # Mount routers
@@ -134,39 +140,21 @@ app.include_router(data_series.router, prefix="/api")
 
 @app.get("/api/health")
 async def health(request: Request):
-    """Health check with diagnostic info."""
-    from pathlib import Path
+    """Public health check — returns only safe aggregate counts."""
     diag = {"status": "ok"}
     try:
         db = request.app.state.db
         if db:
-            cur = await db.execute("SELECT COUNT(*) as c FROM daily_scores")
-            row = await cur.fetchone()
-            diag["daily_scores"] = row["c"]
+            cur = await db.execute("SELECT COUNT(*) as c FROM signals")
+            diag["signals"] = (await cur.fetchone())["c"]
 
-            cur2 = await db.execute("SELECT COUNT(*) as c FROM signals")
-            row2 = await cur2.fetchone()
-            diag["signals"] = row2["c"]
+            cur2 = await db.execute("SELECT COUNT(*) as c FROM articles")
+            diag["articles"] = (await cur2.fetchone())["c"]
 
             cur3 = await db.execute("SELECT COUNT(*) as c FROM data_points")
-            row3 = await cur3.fetchone()
-            diag["data_points"] = row3["c"]
-
-            cur4 = await db.execute("SELECT COUNT(*) as c FROM articles")
-            row4 = await cur4.fetchone()
-            diag["articles"] = row4["c"]
-
-        # Check if seed.db exists
-        backend_dir = Path(__file__).resolve().parent.parent
-        seed_path = backend_dir / "seed.db"
-        diag["seed_db_exists"] = seed_path.exists()
-        if seed_path.exists():
-            diag["seed_db_size_kb"] = seed_path.stat().st_size // 1024
-        from app.config import settings
-        diag["db_path"] = str(settings.db_path)
-        diag["db_exists"] = settings.db_path.exists()
-    except Exception as e:
-        diag["diag_error"] = str(e)
+            diag["data_points"] = (await cur3.fetchone())["c"]
+    except Exception:
+        diag["status"] = "degraded"
     return diag
 
 
