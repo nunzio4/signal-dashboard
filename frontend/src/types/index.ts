@@ -35,6 +35,7 @@ export interface ThesisDashboardData {
 export interface DashboardResponse {
   theses: ThesisDashboardData[];
   last_ingestion: string | null;
+  last_data_fetch: string | null;
   total_articles: number;
   total_signals: number;
   articles_24h: number;

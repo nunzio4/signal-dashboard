@@ -148,9 +148,16 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
     )
     last_row = await last_cursor.fetchone()
 
+    # Most recent data series fetch
+    ds_cursor = await db.execute(
+        "SELECT last_fetched_at FROM data_series WHERE last_fetched_at IS NOT NULL ORDER BY last_fetched_at DESC LIMIT 1"
+    )
+    ds_row = await ds_cursor.fetchone()
+
     return DashboardResponse(
         theses=thesis_data,
         last_ingestion=last_row["last_fetched_at"] if last_row else None,
+        last_data_fetch=ds_row["last_fetched_at"] if ds_row else None,
         total_articles=art_count,
         total_signals=sig_total,
         articles_24h=art_24h,

@@ -2,6 +2,7 @@ import { formatRelativeDate } from "../../utils/formatting";
 
 interface HeaderProps {
   lastIngestion: string | null;
+  lastDataFetch: string | null;
   totalArticles: number;
   totalSignals: number;
   articles24h: number;
@@ -10,8 +11,16 @@ interface HeaderProps {
   isRefreshing: boolean;
 }
 
+/** Return the more recent of two ISO timestamps (or whichever is non-null). */
+function mostRecent(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a > b ? a : b;
+}
+
 export function Header({
   lastIngestion,
+  lastDataFetch,
   totalArticles,
   totalSignals,
   articles24h,
@@ -19,6 +28,8 @@ export function Header({
   onRefresh,
   isRefreshing,
 }: HeaderProps) {
+  const lastRefresh = mostRecent(lastIngestion, lastDataFetch);
+
   return (
     <header className="app-header">
       <div className="header-left">
@@ -58,18 +69,18 @@ export function Header({
       </div>
 
       <div className="header-right">
-        {lastIngestion && (
-          <span className="last-refresh" title={lastIngestion}>
-            Last fetch: {formatRelativeDate(lastIngestion)}
+        {lastRefresh && (
+          <span className="last-refresh" title={lastRefresh}>
+            Last refresh: {formatRelativeDate(lastRefresh)}
           </span>
         )}
         <button
           onClick={onRefresh}
           disabled={isRefreshing}
           className="btn btn-outline refresh-btn"
-          title="Refresh dashboard data"
+          title="Refresh RSS feeds and data series"
         >
-          {isRefreshing ? "⟳" : "↻"} Refresh
+          {isRefreshing ? "⟳ Refreshing…" : "↻ Refresh"}
         </button>
       </div>
     </header>

@@ -4,6 +4,7 @@ import {
   createManualSignal,
   deleteSignal,
   triggerIngestion,
+  refreshAll,
   fetchSources,
   createSource,
   updateSource,
@@ -48,6 +49,18 @@ export function useTriggerIngestion() {
     mutationFn: () => triggerIngestion(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useRefreshAll() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => refreshAll(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["dataSeries"] });
+      queryClient.invalidateQueries({ queryKey: ["sources"] });
     },
   });
 }

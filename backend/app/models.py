@@ -133,6 +133,7 @@ class ThesisDashboardData(BaseModel):
 class DashboardResponse(BaseModel):
     theses: list[ThesisDashboardData]
     last_ingestion: str | None
+    last_data_fetch: str | None
     total_articles: int
     total_signals: int
     articles_24h: int

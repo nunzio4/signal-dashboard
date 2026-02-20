@@ -22,6 +22,13 @@ export async function triggerIngestion(): Promise<unknown> {
   return data;
 }
 
+export async function refreshAll(): Promise<unknown> {
+  const { data } = await client.post("/ingest/refresh-all", null, {
+    timeout: 5 * 60 * 1000,  // 5 minutes — fetches RSS + data series
+  });
+  return data;
+}
+
 export async function fetchIngestionStatus(): Promise<IngestionStatus> {
   const { data } = await client.get<IngestionStatus>("/ingest/status");
   return data;

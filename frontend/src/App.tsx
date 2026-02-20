@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDashboardData } from "./hooks/useDashboard";
+import { useDashboardData, useRefreshAll } from "./hooks/useDashboard";
 import { AppShell } from "./components/layout/AppShell";
 import { Header } from "./components/layout/Header";
 import { DashboardGrid } from "./components/dashboard/DashboardGrid";
@@ -10,19 +10,27 @@ type Tab = "dashboard" | "feeds";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
-  const { data, isLoading, isError, error, refetch, isRefetching } =
+  const { data, isLoading, isError, error, refetch } =
     useDashboardData(30);
+  const refreshAll = useRefreshAll();
+
+  const handleRefresh = () => {
+    refreshAll.mutate(undefined, {
+      onSettled: () => refetch(),
+    });
+  };
 
   return (
     <AppShell>
       <Header
         lastIngestion={data?.last_ingestion ?? null}
+        lastDataFetch={data?.last_data_fetch ?? null}
         totalArticles={data?.total_articles ?? 0}
         totalSignals={data?.total_signals ?? 0}
         articles24h={data?.articles_24h ?? 0}
         signals24h={data?.signals_24h ?? 0}
-        onRefresh={() => refetch()}
-        isRefreshing={isRefetching}
+        onRefresh={handleRefresh}
+        isRefreshing={refreshAll.isPending}
       />
 
       <nav className="tab-bar">
