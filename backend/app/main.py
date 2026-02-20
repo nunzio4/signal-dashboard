@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from app.config import settings
 
@@ -159,27 +159,43 @@ async def health(request: Request):
     return diag
 
 
-# ── Serve React frontend in production ──
+# ── Root redirect to LinkedIn ──
+
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    return RedirectResponse(
+        "https://www.linkedin.com/in/jamesincognito/", status_code=302
+    )
+
+
+# ── Serve React frontend at /signal-dashboard ──
 _static = settings.static_dir
 if _static.exists() and (_static / "index.html").exists():
-    logger.info(f"Serving static frontend from {_static}")
+    logger.info(f"Serving static frontend from {_static} at /signal-dashboard")
 
-    # Serve static assets (JS, CSS, images) at /assets
+    # Serve Vite-built assets at /signal-dashboard/assets
     if (_static / "assets").exists():
-        app.mount("/assets", StaticFiles(directory=str(_static / "assets")), name="assets")
+        app.mount(
+            "/signal-dashboard/assets",
+            StaticFiles(directory=str(_static / "assets")),
+            name="assets",
+        )
 
-    # Serve other static files (favicon, manifest, etc.)
-    @app.get("/favicon.ico")
+    @app.get("/signal-dashboard/favicon.ico", include_in_schema=False)
     async def favicon():
         fav = _static / "favicon.ico"
         if fav.exists():
             return FileResponse(str(fav))
         return FileResponse(str(_static / "index.html"))
 
-    # SPA catch-all: any non-API route serves index.html
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        # Try to serve the file directly first (for things like robots.txt)
+    @app.get("/signal-dashboard", include_in_schema=False)
+    async def signal_dashboard_root():
+        """Serve the SPA index at /signal-dashboard (no trailing slash)."""
+        return FileResponse(str(_static / "index.html"))
+
+    @app.get("/signal-dashboard/{full_path:path}", include_in_schema=False)
+    async def signal_dashboard_spa(full_path: str):
+        """SPA catch-all: serve static files or index.html for client routing."""
         file_path = _static / full_path
         if full_path and file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
