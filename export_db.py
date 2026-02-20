@@ -39,6 +39,19 @@ print(f"Removed {deleted} unreferenced articles (kept {total_articles - deleted}
 # Reset analysis status on kept articles
 cur.execute("UPDATE articles SET analysis_status = 'analyzed'")
 
+# Normalize timestamps so "Past 24h" counts start at 0 on deploy:
+# - data_points.fetched_at → use the observation date (so old data looks old)
+# - articles.ingested_at  → use published_at (so old articles look old)
+# - signals.created_at    → use signal_date  (so old signals look old)
+cur.execute("UPDATE data_points SET fetched_at = date || ' 12:00:00' WHERE date IS NOT NULL")
+print("Normalized data_points.fetched_at to observation dates")
+
+cur.execute("UPDATE articles SET ingested_at = published_at WHERE published_at IS NOT NULL")
+print("Normalized articles.ingested_at to published_at dates")
+
+cur.execute("UPDATE signals SET created_at = signal_date || ' 12:00:00' WHERE signal_date IS NOT NULL")
+print("Normalized signals.created_at to signal_date dates")
+
 # Print summary
 for table in ["theses", "sources", "data_series", "articles", "signals", "daily_scores", "data_points"]:
     cur.execute(f"SELECT COUNT(*) FROM {table}")
