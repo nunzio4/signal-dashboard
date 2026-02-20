@@ -12,7 +12,7 @@ type Tab = "dashboard" | "feeds" | "data-series";
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const { data, isLoading, isError, error, refetch } =
-    useDashboardData(30);
+    useDashboardData(270);
 
   return (
     <AppShell>

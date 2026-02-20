@@ -39,7 +39,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 @router.get("", response_model=DashboardResponse)
-async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le=90)):
+async def get_dashboard(request: Request, days: int = Query(default=270, ge=7, le=365)):
     db = request.app.state.db
     agg = AggregationService(db)
 

@@ -38,6 +38,54 @@ class AggregationService:
             )
         await self.db.commit()
 
+    async def backfill_daily_scores(self):
+        """Compute daily_scores for ALL historical dates that have signals."""
+        cursor = await self.db.execute("SELECT id FROM theses")
+        theses = await cursor.fetchall()
+
+        # Find the earliest signal date across all theses
+        cur = await self.db.execute(
+            "SELECT MIN(signal_date) as mn FROM signals WHERE signal_date IS NOT NULL"
+        )
+        row = await cur.fetchone()
+        if not row or not row["mn"]:
+            return
+
+        start = datetime.strptime(row["mn"][:10], "%Y-%m-%d")
+        end = datetime.utcnow()
+        total_days = (end - start).days + 1
+
+        for thesis in theses:
+            tid = thesis["id"]
+            computed = 0
+            d = start
+            while d <= end:
+                date_str = d.strftime("%Y-%m-%d")
+                result = await self._compute_score(tid, date_str)
+                await self.db.execute(
+                    """INSERT INTO daily_scores
+                           (thesis_id, score_date, composite_score,
+                            signal_count, supporting_count, weakening_count)
+                       VALUES (?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(thesis_id, score_date) DO UPDATE SET
+                           composite_score = excluded.composite_score,
+                           signal_count = excluded.signal_count,
+                           supporting_count = excluded.supporting_count,
+                           weakening_count = excluded.weakening_count,
+                           computed_at = datetime('now')""",
+                    (
+                        tid,
+                        date_str,
+                        result["composite_score"],
+                        result["signal_count"],
+                        result["supporting_count"],
+                        result["weakening_count"],
+                    ),
+                )
+                computed += 1
+                d += timedelta(days=1)
+            await self.db.commit()
+
     async def _compute_score(self, thesis_id: str, as_of_date: str) -> dict:
         """
         Confidence-weighted exponential decay scoring over 30-day window.
