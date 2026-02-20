@@ -24,6 +24,15 @@ def _build_source_url(provider: str, series_config: str) -> str | None:
         if cik:
             return f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}&type=10-Q"
         return None
+    elif provider == "polymarket":
+        slug = cfg.get("slug", "")
+        return f"https://polymarket.com/event/{slug}" if slug else None
+    elif provider == "kalshi":
+        ticker = cfg.get("ticker", "")
+        return f"https://kalshi.com/markets/{ticker}" if ticker else None
+    elif provider == "metaculus":
+        qid = cfg.get("question_id", "")
+        return f"https://www.metaculus.com/questions/{qid}/" if qid else None
     return None
 
 

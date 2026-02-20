@@ -12,18 +12,16 @@ import type { DataSeriesWithData } from "../../types";
 
 const PREDICTION_PROVIDERS = new Set(["polymarket", "kalshi", "metaculus"]);
 
-interface DataSeriesPanelProps {
+interface PredictionMarketPanelProps {
   thesisId: string;
   accentColor: string;
 }
 
-export function DataSeriesPanel({ thesisId, accentColor }: DataSeriesPanelProps) {
-  const { data: rawSeriesList, isLoading } = useDataSeriesByThesis(thesisId, 730);
-
-  // Filter out prediction market series — those are shown in PredictionMarketPanel
-  const seriesList = rawSeriesList?.filter(
-    (s) => !PREDICTION_PROVIDERS.has(s.provider)
-  );
+export function PredictionMarketPanel({
+  thesisId,
+  accentColor,
+}: PredictionMarketPanelProps) {
+  const { data: seriesList, isLoading } = useDataSeriesByThesis(thesisId, 730);
 
   if (isLoading) {
     return (
@@ -36,38 +34,44 @@ export function DataSeriesPanel({ thesisId, accentColor }: DataSeriesPanelProps)
   if (!seriesList || seriesList.length === 0) {
     return (
       <div className="ds-panel ds-panel--empty">
-        <p className="text-muted">No data series available yet</p>
-        <p className="text-muted" style={{ fontSize: "0.72rem" }}>
-          Configure FRED/BLS API keys and trigger a data fetch
-        </p>
+        <p className="text-muted">No prediction market data yet</p>
       </div>
     );
   }
 
-  // Only show series that have data points
-  const withData = seriesList.filter((s) => s.points.length > 0);
+  // Only show prediction market series that have data points
+  const predictionSeries = seriesList.filter(
+    (s) => PREDICTION_PROVIDERS.has(s.provider) && s.points.length > 0
+  );
 
-  if (withData.length === 0) {
+  if (predictionSeries.length === 0) {
     return (
       <div className="ds-panel ds-panel--empty">
-        <p className="text-muted">Data series configured but no data fetched yet</p>
+        <p className="text-muted">Prediction markets configured</p>
+        <p className="text-muted" style={{ fontSize: "0.72rem" }}>
+          Data will appear after the next fetch cycle
+        </p>
       </div>
     );
   }
 
   return (
     <div className="ds-panel">
-      <h4 className="ds-panel__title">Data Series Evidence</h4>
+      <h4 className="ds-panel__title">Prediction Markets</h4>
       <div className="ds-panel__grid">
-        {withData.map((series) => (
-          <DataSeriesCard key={series.id} series={series} accentColor={accentColor} />
+        {predictionSeries.map((series) => (
+          <PredictionMarketCard
+            key={series.id}
+            series={series}
+            accentColor={accentColor}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function DataSeriesCard({
+function PredictionMarketCard({
   series,
   accentColor,
 }: {
@@ -82,8 +86,8 @@ function DataSeriesCard({
         ? "var(--supporting)"
         : "var(--weakening)";
 
-  // Format data for chart — take last 24 points for readability
-  const chartData = series.points.slice(-24).map((p) => ({
+  // Show all data points for the full history chart
+  const chartData = series.points.map((p) => ({
     date: p.date,
     value: p.value,
   }));
@@ -93,12 +97,16 @@ function DataSeriesCard({
       <div className="ds-card__header">
         <div className="ds-card__info">
           <span className="ds-card__name">{series.name}</span>
-          <span className="ds-card__provider">{providerLabel(series.provider)}</span>
+          <span
+            className={`ds-card__provider pm-provider pm-provider--${series.provider}`}
+          >
+            {providerLabel(series.provider)}
+          </span>
         </div>
         <div className="ds-card__values">
           {series.latest_value !== null && (
             <span className="ds-card__latest">
-              {formatValue(series.latest_value, series.unit)}
+              {series.latest_value.toFixed(1)}%
             </span>
           )}
           {series.change_pct !== null && (
@@ -120,7 +128,7 @@ function DataSeriesCard({
                 vertical={false}
               />
               <XAxis dataKey="date" hide />
-              <YAxis hide domain={["auto", "auto"]} />
+              <YAxis hide domain={[0, 100]} />
               <Tooltip
                 contentStyle={{
                   background: "var(--bg-card)",
@@ -130,7 +138,7 @@ function DataSeriesCard({
                 }}
                 labelFormatter={(label) => String(label)}
                 formatter={(value: number | undefined) => [
-                  formatValue(value ?? 0, series.unit),
+                  `${(value ?? 0).toFixed(1)}%`,
                   series.name,
                 ]}
               />
@@ -162,24 +170,13 @@ function isChangeSupporting(series: DataSeriesWithData): boolean | null {
 
 function providerLabel(provider: string): string {
   switch (provider) {
-    case "fred":
-      return "FRED";
-    case "bls":
-      return "BLS";
-    case "sec_edgar":
-      return "SEC EDGAR";
+    case "polymarket":
+      return "POLYMARKET";
+    case "kalshi":
+      return "KALSHI";
+    case "metaculus":
+      return "METACULUS";
     default:
       return provider.toUpperCase();
   }
-}
-
-function formatValue(value: number, unit: string): string {
-  if (unit.includes("Billions")) return `$${value.toFixed(1)}B`;
-  if (unit.includes("Millions")) return `$${(value / 1000).toFixed(1)}B`;
-  if (unit.includes("Thousands")) return `${(value / 1000).toFixed(1)}M`;
-  if (unit === "% Spread") return `${value.toFixed(2)}%`;
-  if (unit === "Net %") return `${value.toFixed(1)}%`;
-  if (unit === "Claims") return `${(value / 1000).toFixed(0)}K`;
-  if (unit === "Index") return value.toFixed(1);
-  return value.toLocaleString();
 }

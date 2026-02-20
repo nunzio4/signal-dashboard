@@ -4,6 +4,7 @@ import { SignalGauge } from "./SignalGauge";
 import { TrendChart } from "./TrendChart";
 import { EvidenceList } from "./EvidenceList";
 import { DataSeriesPanel } from "./DataSeriesPanel";
+import { PredictionMarketPanel } from "./PredictionMarketPanel";
 
 interface ThesisPanelProps {
   thesis: ThesisDashboardData;
@@ -54,6 +55,9 @@ export function ThesisPanel({ thesis }: ThesisPanelProps) {
         </div>
         <div className="thesis-panel__data-series">
           <DataSeriesPanel thesisId={thesis.thesis_id} accentColor={accent} />
+        </div>
+        <div className="thesis-panel__prediction-markets">
+          <PredictionMarketPanel thesisId={thesis.thesis_id} accentColor={accent} />
         </div>
       </div>
     </section>
