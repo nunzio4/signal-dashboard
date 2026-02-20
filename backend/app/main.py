@@ -30,6 +30,17 @@ async def _initial_ingestion(db):
     except Exception as e:
         logger.error(f"Initial ingestion failed (will retry on schedule): {e}")
 
+    # Generate data signals from existing data points
+    try:
+        from app.services.data_signals import DataSignalGenerator
+
+        logger.info("Generating data signals (background)...")
+        generator = DataSignalGenerator(db)
+        ds_stats = await generator.generate_all()
+        logger.info(f"Data signal generation complete: {ds_stats}")
+    except Exception as e:
+        logger.error(f"Data signal generation failed (will retry on schedule): {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
