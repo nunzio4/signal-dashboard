@@ -8,6 +8,7 @@ hourly digest endpoint (admin-only via API key).
 import hashlib
 import logging
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import Response
@@ -23,6 +24,20 @@ def _visitor_hash(ip: str, user_agent: str) -> str:
     return hashlib.sha256(raw).hexdigest()[:16]
 
 
+def _extract_domain(referer: str) -> str:
+    """Extract the domain from a referer URL (e.g. 'https://www.linkedin.com/feed' -> 'linkedin.com')."""
+    if not referer:
+        return ""
+    try:
+        host = urlparse(referer).hostname or ""
+        # Strip 'www.' prefix for cleaner grouping
+        if host.startswith("www."):
+            host = host[4:]
+        return host
+    except Exception:
+        return ""
+
+
 @router.get("/pixel")
 async def tracking_pixel(request: Request, path: str = "/"):
     """1x1 transparent GIF tracking pixel. Called by the frontend on every page load."""
@@ -32,10 +47,12 @@ async def tracking_pixel(request: Request, path: str = "/"):
     referer = request.headers.get("referer", "")
     visitor_id = _visitor_hash(ip, ua)
 
+    referer_domain = _extract_domain(referer)
+
     await db.execute(
-        """INSERT INTO page_views (visitor_id, ip_addr, path, user_agent, referer)
-           VALUES (?, ?, ?, ?, ?)""",
-        (visitor_id, ip, path, ua[:500], referer[:500]),
+        """INSERT INTO page_views (visitor_id, ip_addr, path, user_agent, referer, referer_domain)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (visitor_id, ip, path, ua[:500], referer[:500], referer_domain),
     )
     await db.commit()
 
@@ -91,15 +108,28 @@ async def analytics_digest(
         for r in await top_pages_cursor.fetchall()
     ]
 
-    # Top referers
+    # Top referrer domains (e.g. linkedin.com, google.com)
+    domain_cursor = await db.execute(
+        """SELECT referer_domain as domain, COUNT(*) as views,
+                  COUNT(DISTINCT visitor_id) as visitors
+           FROM page_views WHERE created_at >= ? AND referer_domain != ''
+           GROUP BY referer_domain ORDER BY visitors DESC LIMIT 10""",
+        (cutoff,),
+    )
+    top_referrer_domains = [
+        {"domain": r["domain"], "views": r["views"], "visitors": r["visitors"]}
+        for r in await domain_cursor.fetchall()
+    ]
+
+    # Top referrer URLs (full URLs for detail)
     ref_cursor = await db.execute(
         """SELECT referer, COUNT(DISTINCT visitor_id) as visitors
            FROM page_views WHERE created_at >= ? AND referer != ''
            GROUP BY referer ORDER BY visitors DESC LIMIT 10""",
         (cutoff,),
     )
-    top_referers = [
-        {"referer": r["referer"], "visitors": r["visitors"]}
+    top_referrer_urls = [
+        {"url": r["referer"], "visitors": r["visitors"]}
         for r in await ref_cursor.fetchall()
     ]
 
@@ -129,7 +159,8 @@ async def analytics_digest(
         "unique_visitors": unique_visitors,
         "total_views": total_views,
         "top_pages": top_pages,
-        "top_referers": top_referers,
+        "top_referrer_domains": top_referrer_domains,
+        "top_referrer_urls": top_referrer_urls,
         "hourly_breakdown": hourly,
         "all_time": {
             "unique_visitors": all_row["uv"],

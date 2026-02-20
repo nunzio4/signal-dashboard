@@ -99,14 +99,15 @@ CREATE TABLE IF NOT EXISTS data_points (
 );
 
 CREATE TABLE IF NOT EXISTS page_views (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    visitor_id  TEXT NOT NULL,
-    ip_addr     TEXT,
-    path        TEXT NOT NULL,
-    user_agent  TEXT,
-    referer     TEXT,
-    country     TEXT,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    visitor_id      TEXT NOT NULL,
+    ip_addr         TEXT,
+    path            TEXT NOT NULL,
+    user_agent      TEXT,
+    referer         TEXT,
+    referer_domain  TEXT,
+    country         TEXT,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(analysis_status);
