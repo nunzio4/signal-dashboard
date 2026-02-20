@@ -135,6 +135,8 @@ class DashboardResponse(BaseModel):
     last_ingestion: str | None
     total_articles: int
     total_signals: int
+    articles_24h: int
+    signals_24h: int
 
 
 class SourceResponse(BaseModel):

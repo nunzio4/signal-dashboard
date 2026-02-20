@@ -108,7 +108,27 @@ a:hover {
 
 .header-stats {
   display: flex;
-  gap: 2rem;
+  gap: 1.75rem;
+}
+
+.header-stat-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stat-group-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.stat-group-row {
+  display: flex;
+  gap: 0.75rem;
 }
 
 .header-stat {
@@ -119,13 +139,17 @@ a:hover {
 }
 
 .header-stat .stat-value {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--text-primary);
 }
 
+.header-stat .stat-value--recent {
+  color: var(--accent);
+}
+
 .header-stat .stat-label {
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -733,6 +757,10 @@ a:hover {
 
   .header-stats {
     gap: 1rem;
+  }
+
+  .stat-group-row {
+    gap: 0.5rem;
   }
 
   .header-stat .stat-value {

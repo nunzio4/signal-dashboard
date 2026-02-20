@@ -19,6 +19,8 @@ function App() {
         lastIngestion={data?.last_ingestion ?? null}
         totalArticles={data?.total_articles ?? 0}
         totalSignals={data?.total_signals ?? 0}
+        articles24h={data?.articles_24h ?? 0}
+        signals24h={data?.signals_24h ?? 0}
         onRefresh={() => refetch()}
         isRefreshing={isRefetching}
       />

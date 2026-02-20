@@ -37,6 +37,8 @@ export interface DashboardResponse {
   last_ingestion: string | null;
   total_articles: number;
   total_signals: number;
+  articles_24h: number;
+  signals_24h: number;
 }
 
 export interface ManualSignalCreate {

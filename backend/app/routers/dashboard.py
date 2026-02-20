@@ -109,6 +109,21 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
     sig_total_cursor = await db.execute("SELECT COUNT(*) as cnt FROM signals")
     sig_total = (await sig_total_cursor.fetchone())["cnt"]
 
+    # 24-hour counts
+    cutoff_global_24h = (datetime.utcnow() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+
+    art_24h_cursor = await db.execute(
+        "SELECT COUNT(*) as cnt FROM articles WHERE ingested_at >= ?",
+        (cutoff_global_24h,),
+    )
+    art_24h = (await art_24h_cursor.fetchone())["cnt"]
+
+    sig_24h_cursor = await db.execute(
+        "SELECT COUNT(*) as cnt FROM signals WHERE created_at >= ?",
+        (cutoff_global_24h,),
+    )
+    sig_24h = (await sig_24h_cursor.fetchone())["cnt"]
+
     last_cursor = await db.execute(
         "SELECT last_fetched_at FROM sources WHERE last_fetched_at IS NOT NULL ORDER BY last_fetched_at DESC LIMIT 1"
     )
@@ -119,4 +134,6 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
         last_ingestion=last_row["last_fetched_at"] if last_row else None,
         total_articles=art_count,
         total_signals=sig_total,
+        articles_24h=art_24h,
+        signals_24h=sig_24h,
     )

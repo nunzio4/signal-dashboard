@@ -4,6 +4,8 @@ interface HeaderProps {
   lastIngestion: string | null;
   totalArticles: number;
   totalSignals: number;
+  articles24h: number;
+  signals24h: number;
   onRefresh: () => void;
   isRefreshing: boolean;
 }
@@ -12,6 +14,8 @@ export function Header({
   lastIngestion,
   totalArticles,
   totalSignals,
+  articles24h,
+  signals24h,
   onRefresh,
   isRefreshing,
 }: HeaderProps) {
@@ -25,13 +29,31 @@ export function Header({
       </div>
 
       <div className="header-stats">
-        <div className="header-stat">
-          <span className="stat-value">{totalArticles}</span>
-          <span className="stat-label">Articles</span>
+        <div className="header-stat-group">
+          <span className="stat-group-label">Articles</span>
+          <div className="stat-group-row">
+            <div className="header-stat">
+              <span className="stat-value">{totalArticles.toLocaleString()}</span>
+              <span className="stat-label">All-time</span>
+            </div>
+            <div className="header-stat">
+              <span className="stat-value stat-value--recent">{articles24h}</span>
+              <span className="stat-label">Past 24h</span>
+            </div>
+          </div>
         </div>
-        <div className="header-stat">
-          <span className="stat-value">{totalSignals}</span>
-          <span className="stat-label">Signals</span>
+        <div className="header-stat-group">
+          <span className="stat-group-label">Signals</span>
+          <div className="stat-group-row">
+            <div className="header-stat">
+              <span className="stat-value">{totalSignals.toLocaleString()}</span>
+              <span className="stat-label">All-time</span>
+            </div>
+            <div className="header-stat">
+              <span className="stat-value stat-value--recent">{signals24h}</span>
+              <span className="stat-label">Past 24h</span>
+            </div>
+          </div>
         </div>
       </div>
 
