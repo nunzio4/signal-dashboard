@@ -1,8 +1,16 @@
 import { formatDistanceToNow, parseISO, format } from "date-fns";
 
+/** Parse a backend timestamp (UTC but without trailing Z) into a Date. */
+function parseUTC(dateStr: string): Date {
+  // Backend returns "2026-02-20 03:35:04" (UTC, no Z). Append Z so
+  // parseISO treats it as UTC rather than local time.
+  const normalized = dateStr.includes("T") ? dateStr : dateStr.replace(" ", "T");
+  return parseISO(normalized.endsWith("Z") ? normalized : normalized + "Z");
+}
+
 export function formatRelativeDate(dateStr: string): string {
   try {
-    const date = parseISO(dateStr);
+    const date = parseUTC(dateStr);
     return formatDistanceToNow(date, { addSuffix: true });
   } catch {
     return dateStr;
