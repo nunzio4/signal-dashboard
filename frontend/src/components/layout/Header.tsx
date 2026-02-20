@@ -48,6 +48,7 @@ export function Header({
       </div>
 
       <div className="header-stats">
+        {/* News pipeline: Articles → News Signals */}
         <div className="header-stat-group">
           <span className="stat-group-label">Articles</span>
           <div className="stat-group-row">
@@ -62,19 +63,6 @@ export function Header({
           </div>
         </div>
         <div className="header-stat-group">
-          <span className="stat-group-label">Data Points</span>
-          <div className="stat-group-row">
-            <div className="header-stat">
-              <span className="stat-value">{totalDataPoints.toLocaleString()}</span>
-              <span className="stat-label">All-time</span>
-            </div>
-            <div className="header-stat">
-              <span className="stat-value stat-value--recent">{dataPoints24h}</span>
-              <span className="stat-label">Past 24h</span>
-            </div>
-          </div>
-        </div>
-        <div className="header-stat-group">
           <span className="stat-group-label">News Signals</span>
           <div className="stat-group-row">
             <div className="header-stat">
@@ -83,6 +71,23 @@ export function Header({
             </div>
             <div className="header-stat">
               <span className="stat-value stat-value--recent">{newsSignals24h}</span>
+              <span className="stat-label">Past 24h</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="header-stats-separator" />
+
+        {/* Data pipeline: Data Points → Data Signals */}
+        <div className="header-stat-group">
+          <span className="stat-group-label">Data Points</span>
+          <div className="stat-group-row">
+            <div className="header-stat">
+              <span className="stat-value">{totalDataPoints.toLocaleString()}</span>
+              <span className="stat-label">All-time</span>
+            </div>
+            <div className="header-stat">
+              <span className="stat-value stat-value--recent">{dataPoints24h}</span>
               <span className="stat-label">Past 24h</span>
             </div>
           </div>

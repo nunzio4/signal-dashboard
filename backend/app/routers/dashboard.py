@@ -124,14 +124,16 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
                 )
             )
 
-        # Per-thesis signal counts split by type (news vs data)
-        week_ago = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+        # Per-thesis signal counts split by type (news vs data).
+        # Use created_at for both 7d and 24h so counts are consistent
+        # (signal_date is the article publish date which can predate ingestion).
+        cutoff_7d = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
         count_cursor = await db.execute(
             """SELECT
                  SUM(CASE WHEN signal_type='news'  THEN 1 ELSE 0 END) as news_7d,
                  SUM(CASE WHEN signal_type='data'  THEN 1 ELSE 0 END) as data_7d
-               FROM signals WHERE thesis_id = ? AND signal_date >= ?""",
-            (tid, week_ago),
+               FROM signals WHERE thesis_id = ? AND created_at >= ?""",
+            (tid, cutoff_7d),
         )
         count_row = await count_cursor.fetchone()
 
