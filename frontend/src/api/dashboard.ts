@@ -1,7 +1,7 @@
 import client from "./client";
 import type { DashboardResponse, ManualSignalCreate, Signal, IngestionStatus, Source, DataSeries, DataSeriesWithData } from "../types";
 
-export async function fetchDashboard(days: number = 30): Promise<DashboardResponse> {
+export async function fetchDashboard(days: number = 270): Promise<DashboardResponse> {
   const { data } = await client.get<DashboardResponse>("/dashboard", {
     params: { days },
   });

@@ -15,7 +15,7 @@ import {
 import type { ManualSignalCreate } from "../types";
 import type { CreateSourcePayload, UpdateSourcePayload } from "../api/dashboard";
 
-export function useDashboardData(days: number = 30) {
+export function useDashboardData(days: number = 270) {
   return useQuery({
     queryKey: ["dashboard", days],
     queryFn: () => fetchDashboard(days),
