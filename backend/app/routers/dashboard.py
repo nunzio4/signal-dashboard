@@ -61,13 +61,14 @@ async def get_dashboard(request: Request, days: int = Query(default=270, ge=7, l
         # Top 10 strongest signals from the trailing 24 hours,
         # deduplicated so each source_url / evidence_quote appears at most
         # once per thesis. Fetch extra rows then dedup in Python.
+        # Use signal_date (event date) not created_at (processing date).
         cutoff_24h = (datetime.utcnow() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
         sig_cursor = await db.execute(
             """SELECT id, thesis_id, direction, strength, confidence,
                       evidence_quote, reasoning, source_title, source_url,
                       signal_date, is_manual, signal_type, created_at
                FROM signals
-               WHERE thesis_id = ? AND created_at >= ?
+               WHERE thesis_id = ? AND signal_date >= ?
                ORDER BY strength DESC, confidence DESC
                LIMIT 50""",
             (tid, cutoff_24h),
@@ -125,14 +126,13 @@ async def get_dashboard(request: Request, days: int = Query(default=270, ge=7, l
             )
 
         # Per-thesis signal counts split by type (news vs data).
-        # Use created_at for both 7d and 24h so counts are consistent
-        # (signal_date is the article publish date which can predate ingestion).
+        # Use signal_date (event date) for consistent time-based filtering.
         cutoff_7d = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
         count_cursor = await db.execute(
             """SELECT
                  SUM(CASE WHEN signal_type='news'  THEN 1 ELSE 0 END) as news_7d,
                  SUM(CASE WHEN signal_type='data'  THEN 1 ELSE 0 END) as data_7d
-               FROM signals WHERE thesis_id = ? AND created_at >= ?""",
+               FROM signals WHERE thesis_id = ? AND signal_date >= ?""",
             (tid, cutoff_7d),
         )
         count_row = await count_cursor.fetchone()
@@ -142,7 +142,7 @@ async def get_dashboard(request: Request, days: int = Query(default=270, ge=7, l
             """SELECT
                  SUM(CASE WHEN signal_type='news'  THEN 1 ELSE 0 END) as news_24h,
                  SUM(CASE WHEN signal_type='data'  THEN 1 ELSE 0 END) as data_24h
-               FROM signals WHERE thesis_id = ? AND created_at >= ?""",
+               FROM signals WHERE thesis_id = ? AND signal_date >= ?""",
             (tid, cutoff_24h),
         )
         count_24h_row = await count_24h_cursor.fetchone()
@@ -181,7 +181,7 @@ async def get_dashboard(request: Request, days: int = Query(default=270, ge=7, l
     cutoff_global_24h = (datetime.utcnow() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
 
     art_24h_cursor = await db.execute(
-        "SELECT COUNT(*) as cnt FROM articles WHERE ingested_at >= ?",
+        "SELECT COUNT(*) as cnt FROM articles WHERE published_at >= ?",
         (cutoff_global_24h,),
     )
     art_24h = (await art_24h_cursor.fetchone())["cnt"]
@@ -190,7 +190,7 @@ async def get_dashboard(request: Request, days: int = Query(default=270, ge=7, l
         """SELECT
              SUM(CASE WHEN signal_type='news'  THEN 1 ELSE 0 END) as news_24h,
              SUM(CASE WHEN signal_type='data'  THEN 1 ELSE 0 END) as data_24h
-           FROM signals WHERE created_at >= ?""",
+           FROM signals WHERE signal_date >= ?""",
         (cutoff_global_24h,),
     )
     sig_24h = await sig_24h_cursor.fetchone()
