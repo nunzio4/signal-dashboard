@@ -125,18 +125,20 @@ async def get_series_with_data(
         if points:
             latest = points[-1]["value"]
             if is_prediction:
-                # Use 30-day change for prediction markets
+                # Use 30-day absolute point change for prediction markets.
+                # Values are already probabilities (0-100%), so the change
+                # is expressed as absolute points (e.g. 20% -> 25% = +5.0).
                 cutoff_30d = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d")
-                # Find the closest point to 30 days ago
+                # Find the closest point on or before 30 days ago
                 baseline = None
                 for p in points:
                     if p["date"] <= cutoff_30d:
                         baseline = p["value"]
                     else:
                         break
-                if baseline is not None and baseline != 0:
+                if baseline is not None:
                     previous = baseline
-                    change_pct = round(((latest - baseline) / abs(baseline)) * 100, 2)
+                    change_pct = round(latest - baseline, 1)
             else:
                 # Day-over-day change for regular data series
                 if len(points) >= 2:
