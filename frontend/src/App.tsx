@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDashboardData } from "./hooks/useDashboard";
 import { AppShell } from "./components/layout/AppShell";
 import { Header } from "./components/layout/Header";
@@ -7,12 +7,23 @@ import { ManualSignalForm } from "./components/signals/ManualSignalForm";
 import { FeedManager } from "./components/feeds/FeedManager";
 import { DataSeriesManager } from "./components/feeds/DataSeriesManager";
 
+const API_BASE = import.meta.env.VITE_API_URL ?? (
+  import.meta.env.DEV ? "http://localhost:8000" : ""
+);
+
 type Tab = "dashboard" | "feeds" | "data-series";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const { data, isLoading, isError, error, refetch } =
     useDashboardData(270);
+
+  // Lightweight visitor tracking — fire once per page load
+  useEffect(() => {
+    const path = encodeURIComponent(window.location.pathname);
+    const img = new Image();
+    img.src = `${API_BASE}/api/analytics/pixel?path=${path}&_t=${Date.now()}`;
+  }, []);
 
   return (
     <AppShell>

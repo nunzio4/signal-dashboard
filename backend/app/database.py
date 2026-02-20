@@ -98,12 +98,25 @@ CREATE TABLE IF NOT EXISTS data_points (
     UNIQUE(series_id, date)
 );
 
+CREATE TABLE IF NOT EXISTS page_views (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    visitor_id  TEXT NOT NULL,
+    ip_addr     TEXT,
+    path        TEXT NOT NULL,
+    user_agent  TEXT,
+    referer     TEXT,
+    country     TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(analysis_status);
 CREATE INDEX IF NOT EXISTS idx_articles_external_id ON articles(external_id);
 CREATE INDEX IF NOT EXISTS idx_signals_thesis ON signals(thesis_id, signal_date);
 CREATE INDEX IF NOT EXISTS idx_signals_article ON signals(article_id);
 CREATE INDEX IF NOT EXISTS idx_daily_scores_thesis_date ON daily_scores(thesis_id, score_date);
 CREATE INDEX IF NOT EXISTS idx_data_points_series_date ON data_points(series_id, date);
+CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at);
+CREATE INDEX IF NOT EXISTS idx_page_views_visitor ON page_views(visitor_id, created_at);
 """
 
 SEED_THESES = [

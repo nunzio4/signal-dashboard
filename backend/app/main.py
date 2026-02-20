@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 
-from app.auth import WriteProtectionMiddleware
+from app.auth import WriteProtectionMiddleware, SecurityHeadersMiddleware
 from app.config import settings
 
 logging.basicConfig(
@@ -115,10 +115,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Signal Dashboard API", lifespan=lifespan)
 
 # ── Security middleware ──
-# Write-protection: require X-API-Key for POST/PUT/DELETE
+# Order matters: outermost middleware runs first.
+# 1) Security headers on every response
+app.add_middleware(SecurityHeadersMiddleware)
+# 2) Write-protection: require X-API-Key for POST/PUT/DELETE (+ admin GETs)
 app.add_middleware(WriteProtectionMiddleware)
-
-# CORS: only allow known origins (from config.py)
+# 3) CORS: only allow known origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -128,7 +130,7 @@ app.add_middleware(
 )
 
 # Mount routers
-from app.routers import dashboard, signals, articles, sources, ingest, data_series  # noqa: E402
+from app.routers import dashboard, signals, articles, sources, ingest, data_series, analytics  # noqa: E402
 
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(signals.router, prefix="/api")
@@ -136,6 +138,7 @@ app.include_router(articles.router, prefix="/api")
 app.include_router(sources.router, prefix="/api")
 app.include_router(ingest.router, prefix="/api")
 app.include_router(data_series.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
 
 
 @app.get("/api/health")
@@ -195,8 +198,9 @@ if _static.exists() and (_static / "index.html").exists():
     @app.get("/signal-dashboard/{full_path:path}", include_in_schema=False)
     async def signal_dashboard_spa(full_path: str):
         """SPA catch-all: serve static files or index.html for client routing."""
-        file_path = _static / full_path
-        if full_path and file_path.exists() and file_path.is_file():
+        file_path = (_static / full_path).resolve()
+        # Prevent path traversal — resolved path must be inside _static
+        if full_path and file_path.is_relative_to(_static.resolve()) and file_path.is_file():
             return FileResponse(str(file_path))
         return FileResponse(str(_static / "index.html"))
 else:
