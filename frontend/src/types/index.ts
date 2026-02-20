@@ -99,6 +99,7 @@ export interface DataSeries {
   direction_logic: "higher_supporting" | "lower_supporting";
   enabled: boolean;
   last_fetched_at: string | null;
+  latest_date: string | null;
   created_at: string;
   source_url: string | null;
 }

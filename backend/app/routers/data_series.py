@@ -32,12 +32,18 @@ async def list_data_series(request: Request, thesis_id: str | None = None):
     """List all data series, optionally filtered by thesis."""
     db = request.app.state.db
 
+    # Join with data_points to get the most recent observation date per series
+    base_query = """
+        SELECT ds.*,
+               (SELECT MAX(dp.date) FROM data_points dp WHERE dp.series_id = ds.id) AS latest_date
+        FROM data_series ds
+    """
     if thesis_id:
         cursor = await db.execute(
-            "SELECT * FROM data_series WHERE thesis_id = ? ORDER BY name", (thesis_id,)
+            base_query + " WHERE ds.thesis_id = ? ORDER BY ds.name", (thesis_id,)
         )
     else:
-        cursor = await db.execute("SELECT * FROM data_series ORDER BY thesis_id, name")
+        cursor = await db.execute(base_query + " ORDER BY ds.thesis_id, ds.name")
 
     rows = await cursor.fetchall()
     result = []

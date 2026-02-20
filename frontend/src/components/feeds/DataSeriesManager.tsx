@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useAllDataSeries } from "../../hooks/useDashboard";
-import { formatRelativeDate } from "../../utils/formatting";
 
 export function DataSeriesManager() {
   const { data: series, isLoading, isError } = useAllDataSeries();
@@ -101,7 +100,7 @@ export function DataSeriesManager() {
                       <th>Description</th>
                       <th>Provider</th>
                       <th>Source</th>
-                      <th>Last Fetched</th>
+                      <th>Last Series Update</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -157,9 +156,9 @@ export function DataSeriesManager() {
                           )}
                         </td>
                         <td className="text-muted">
-                          {s.last_fetched_at
-                            ? formatRelativeDate(s.last_fetched_at)
-                            : "Never"}
+                          {s.latest_date
+                            ? formatSeriesDate(s.latest_date)
+                            : "No data"}
                         </td>
                       </tr>
                     ))}
@@ -180,6 +179,21 @@ export function DataSeriesManager() {
       )}
     </div>
   );
+}
+
+/** Format a date string like "2026-02-18" into "Feb 18, 2026" */
+function formatSeriesDate(dateStr: string): string {
+  try {
+    // Parse as local date (add noon to avoid timezone shift)
+    const d = new Date(dateStr + "T12:00:00");
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
 }
 
 function truncateUrl(url: string, maxLen = 45): string {
