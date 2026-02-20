@@ -217,17 +217,21 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
     ds_row = await ds_cursor.fetchone()
 
     # Next scheduled ingestion times from APScheduler
+    # APScheduler returns tz-aware datetimes; convert to UTC for consistency
     next_ingestion_str = None
     next_data_fetch_str = None
     try:
+        from datetime import timezone
         scheduler = request.app.state.scheduler
         if scheduler:
             ing_job = scheduler.get_job("ingestion")
             if ing_job and ing_job.next_run_time:
-                next_ingestion_str = ing_job.next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+                utc_time = ing_job.next_run_time.astimezone(timezone.utc)
+                next_ingestion_str = utc_time.strftime("%Y-%m-%d %H:%M:%S")
             ds_job = scheduler.get_job("data_series")
             if ds_job and ds_job.next_run_time:
-                next_data_fetch_str = ds_job.next_run_time.strftime("%Y-%m-%d %H:%M:%S")
+                utc_time = ds_job.next_run_time.astimezone(timezone.utc)
+                next_data_fetch_str = utc_time.strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
         pass
 
