@@ -1,5 +1,6 @@
 """
-Fetcher service for structured data series from FRED, BLS, and SEC EDGAR.
+Fetcher service for structured data series from FRED, BLS, SEC EDGAR,
+Polymarket, Kalshi, and Metaculus.
 """
 import json
 import logging
@@ -17,6 +18,11 @@ FRED_CSV_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv"
 BLS_BASE = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
 SEC_EDGAR_BASE = "https://data.sec.gov/api/xbrl/companyconcept"
 SEC_USER_AGENT = "SignalDashboard admin@signaldashboard.app"
+
+# Prediction market APIs (all public, no auth required for reads)
+POLYMARKET_API = "https://gamma-api.polymarket.com"
+KALSHI_API = "https://api.elections.kalshi.com/trade-api/v2"
+METACULUS_API = "https://www.metaculus.com/api/posts"
 
 
 class DataSeriesFetcher:
@@ -43,6 +49,12 @@ class DataSeriesFetcher:
                     count = await self._fetch_bls(series["id"], config)
                 elif provider == "sec_edgar":
                     count = await self._fetch_sec_edgar(series["id"], config)
+                elif provider == "polymarket":
+                    count = await self._fetch_polymarket(series["id"], config)
+                elif provider == "kalshi":
+                    count = await self._fetch_kalshi(series["id"], config)
+                elif provider == "metaculus":
+                    count = await self._fetch_metaculus(series["id"], config)
                 else:
                     logger.warning(f"Unknown provider {provider} for series {series['id']}")
                     stats["skipped"] += 1
@@ -275,3 +287,156 @@ class DataSeriesFetcher:
 
         await self.db.commit()
         return new_count
+
+    # ── Prediction Market Fetchers ──
+
+    async def _fetch_polymarket(self, series_id: str, config: dict) -> int:
+        """Fetch current probability from Polymarket Gamma API.
+
+        Config keys:
+            slug: str          — event slug (e.g. "us-recession-by-end-of-2026")
+            outcome_index: int — 0 for Yes, 1 for No (default 0)
+            market_index: int  — index into event's markets list (default 0)
+        """
+        slug = config["slug"]
+        outcome_index = config.get("outcome_index", 0)
+        market_index = config.get("market_index", 0)
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{POLYMARKET_API}/events",
+                params={"slug": slug},
+            )
+            resp.raise_for_status()
+            events = resp.json()
+
+        if not events:
+            logger.warning(f"Polymarket: no event found for slug={slug}")
+            return 0
+
+        event = events[0]
+        markets = event.get("markets", [])
+        if not markets or market_index >= len(markets):
+            logger.warning(f"Polymarket: no market at index {market_index} for {slug}")
+            return 0
+
+        market = markets[market_index]
+        prices_str = market.get("outcomePrices", "[]")
+
+        # outcomePrices can be a JSON string or a list depending on response
+        if isinstance(prices_str, str):
+            prices = json.loads(prices_str)
+        else:
+            prices = prices_str
+
+        if outcome_index >= len(prices):
+            logger.warning(f"Polymarket: no outcome at index {outcome_index}")
+            return 0
+
+        probability = float(prices[outcome_index]) * 100  # 0-1 → 0-100%
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+
+        try:
+            await self.db.execute(
+                """INSERT OR REPLACE INTO data_points (series_id, date, value)
+                   VALUES (?, ?, ?)""",
+                (series_id, today, round(probability, 2)),
+            )
+            await self.db.commit()
+            logger.info(f"Polymarket {slug}: {probability:.1f}%")
+            return 1
+        except Exception:
+            return 0
+
+    async def _fetch_kalshi(self, series_id: str, config: dict) -> int:
+        """Fetch current probability from Kalshi public API.
+
+        Config keys:
+            ticker: str — market ticker (e.g. "KXRECSSNBER-26")
+        """
+        ticker = config["ticker"]
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{KALSHI_API}/markets/{ticker}",
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        market = data.get("market", {})
+        yes_ask = market.get("yes_ask")  # 0-99 cents = probability in %
+
+        if yes_ask is None:
+            # Try yes_bid or last_price as fallback
+            yes_ask = market.get("yes_bid") or market.get("last_price")
+
+        if yes_ask is None:
+            logger.warning(f"Kalshi: no price data for {ticker}")
+            return 0
+
+        probability = float(yes_ask)  # Already in cents (0-99 ≈ probability %)
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+
+        try:
+            await self.db.execute(
+                """INSERT OR REPLACE INTO data_points (series_id, date, value)
+                   VALUES (?, ?, ?)""",
+                (series_id, today, round(probability, 2)),
+            )
+            await self.db.commit()
+            logger.info(f"Kalshi {ticker}: {probability:.0f}%")
+            return 1
+        except Exception:
+            return 0
+
+    async def _fetch_metaculus(self, series_id: str, config: dict) -> int:
+        """Fetch current community prediction from Metaculus API.
+
+        Config keys:
+            question_id: int — the Metaculus question ID
+            value_type: str  — "probability" for binary, "center" for numeric (default: "probability")
+        """
+        question_id = config["question_id"]
+        value_type = config.get("value_type", "probability")
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{METACULUS_API}/{question_id}/",
+                headers={"Accept": "application/json"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        question = data.get("question", {})
+        aggregations = question.get("aggregations", {})
+        recency = aggregations.get("recency_weighted", {})
+        latest = recency.get("latest", {})
+
+        if value_type == "probability":
+            # Binary question — centers[0] is the probability (0-1)
+            centers = latest.get("centers", [])
+            if not centers:
+                logger.warning(f"Metaculus Q{question_id}: no probability data")
+                return 0
+            value = float(centers[0]) * 100  # 0-1 → 0-100%
+        else:
+            # Numeric question — centers[0] is the median prediction
+            centers = latest.get("centers", [])
+            if not centers:
+                logger.warning(f"Metaculus Q{question_id}: no center data")
+                return 0
+            value = float(centers[0])
+
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+
+        try:
+            await self.db.execute(
+                """INSERT OR REPLACE INTO data_points (series_id, date, value)
+                   VALUES (?, ?, ?)""",
+                (series_id, today, round(value, 2)),
+            )
+            await self.db.commit()
+            logger.info(f"Metaculus Q{question_id}: {value:.2f}")
+            return 1
+        except Exception:
+            return 0
