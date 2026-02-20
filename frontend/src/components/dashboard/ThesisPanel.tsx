@@ -1,6 +1,5 @@
 import type { ThesisDashboardData } from "../../types";
 import { getThesisAccent } from "../../utils/colors";
-import { formatPct } from "../../utils/formatting";
 import { SignalGauge } from "./SignalGauge";
 import { TrendChart } from "./TrendChart";
 import { EvidenceList } from "./EvidenceList";
@@ -22,10 +21,16 @@ export function ThesisPanel({ thesis }: ThesisPanelProps) {
         <p className="thesis-description">{thesis.thesis_description}</p>
         <div className="thesis-stats">
           <span className="stat">
-            <strong>{thesis.signal_count_7d}</strong> signals (7d)
+            <strong>{thesis.news_signals_7d}</strong> News Signals (7d)
           </span>
           <span className="stat">
-            <strong>{formatPct(thesis.supporting_pct)}</strong> supporting
+            <strong>{thesis.news_signals_24h}</strong> News Signals (24h)
+          </span>
+          <span className="stat">
+            <strong>{thesis.data_signals_7d}</strong> Data Signals (7d)
+          </span>
+          <span className="stat">
+            <strong>{thesis.data_signals_24h}</strong> Data Signals (24h)
           </span>
         </div>
       </div>

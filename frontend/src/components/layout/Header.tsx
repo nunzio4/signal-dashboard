@@ -4,9 +4,13 @@ interface HeaderProps {
   lastIngestion: string | null;
   lastDataFetch: string | null;
   totalArticles: number;
-  totalSignals: number;
   articles24h: number;
-  signals24h: number;
+  totalDataPoints: number;
+  dataPoints24h: number;
+  totalNewsSignals: number;
+  newsSignals24h: number;
+  totalDataSignals: number;
+  dataSignals24h: number;
   onRefresh: () => void;
   isRefreshing: boolean;
 }
@@ -22,9 +26,13 @@ export function Header({
   lastIngestion,
   lastDataFetch,
   totalArticles,
-  totalSignals,
   articles24h,
-  signals24h,
+  totalDataPoints,
+  dataPoints24h,
+  totalNewsSignals,
+  newsSignals24h,
+  totalDataSignals,
+  dataSignals24h,
   onRefresh,
   isRefreshing,
 }: HeaderProps) {
@@ -54,14 +62,40 @@ export function Header({
           </div>
         </div>
         <div className="header-stat-group">
-          <span className="stat-group-label">Signals</span>
+          <span className="stat-group-label">Data Points</span>
           <div className="stat-group-row">
             <div className="header-stat">
-              <span className="stat-value">{totalSignals.toLocaleString()}</span>
+              <span className="stat-value">{totalDataPoints.toLocaleString()}</span>
               <span className="stat-label">All-time</span>
             </div>
             <div className="header-stat">
-              <span className="stat-value stat-value--recent">{signals24h}</span>
+              <span className="stat-value stat-value--recent">{dataPoints24h}</span>
+              <span className="stat-label">Past 24h</span>
+            </div>
+          </div>
+        </div>
+        <div className="header-stat-group">
+          <span className="stat-group-label">News Signals</span>
+          <div className="stat-group-row">
+            <div className="header-stat">
+              <span className="stat-value">{totalNewsSignals.toLocaleString()}</span>
+              <span className="stat-label">All-time</span>
+            </div>
+            <div className="header-stat">
+              <span className="stat-value stat-value--recent">{newsSignals24h}</span>
+              <span className="stat-label">Past 24h</span>
+            </div>
+          </div>
+        </div>
+        <div className="header-stat-group">
+          <span className="stat-group-label">Data Signals</span>
+          <div className="stat-group-row">
+            <div className="header-stat">
+              <span className="stat-value">{totalDataSignals.toLocaleString()}</span>
+              <span className="stat-label">All-time</span>
+            </div>
+            <div className="header-stat">
+              <span className="stat-value stat-value--recent">{dataSignals24h}</span>
               <span className="stat-label">Past 24h</span>
             </div>
           </div>

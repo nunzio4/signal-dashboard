@@ -63,6 +63,17 @@ async def refresh_all(request: Request):
         logger.error(f"Data series refresh failed: {e}")
         result["data_series_error"] = str(e)
 
+    # 3) Generate data signals from data series changes
+    try:
+        from app.services.data_signals import DataSignalGenerator
+
+        generator = DataSignalGenerator(db)
+        ds_signal_stats = await generator.generate_all()
+        result["data_signals"] = ds_signal_stats
+    except Exception as e:
+        logger.error(f"Data signal generation failed: {e}")
+        result["data_signals_error"] = str(e)
+
     return result
 
 

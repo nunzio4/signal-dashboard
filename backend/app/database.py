@@ -58,7 +58,9 @@ CREATE TABLE IF NOT EXISTS signals (
     source_url      TEXT,
     signal_date     TEXT NOT NULL,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    is_manual       INTEGER NOT NULL DEFAULT 0
+    is_manual       INTEGER NOT NULL DEFAULT 0,
+    signal_type     TEXT NOT NULL DEFAULT 'news',
+    data_point_id   INTEGER REFERENCES data_points(id)
 );
 
 CREATE TABLE IF NOT EXISTS daily_scores (
@@ -182,6 +184,23 @@ async def get_db() -> aiosqlite.Connection:
 async def init_database(db: aiosqlite.Connection):
     await db.executescript(SCHEMA_SQL)
     await db.commit()
+
+    # ── Migrations for existing databases ──
+    # Add signal_type column (news vs data) if missing
+    try:
+        await db.execute("ALTER TABLE signals ADD COLUMN signal_type TEXT NOT NULL DEFAULT 'news'")
+        await db.commit()
+        logger.info("Migration: added signal_type column to signals")
+    except Exception:
+        pass  # Column already exists
+
+    # Add data_point_id column if missing
+    try:
+        await db.execute("ALTER TABLE signals ADD COLUMN data_point_id INTEGER REFERENCES data_points(id)")
+        await db.commit()
+        logger.info("Migration: added data_point_id column to signals")
+    except Exception:
+        pass  # Column already exists
 
 
 SEED_SOURCES = [

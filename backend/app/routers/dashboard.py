@@ -65,7 +65,7 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
         sig_cursor = await db.execute(
             """SELECT id, thesis_id, direction, strength, confidence,
                       evidence_quote, reasoning, source_title, source_url,
-                      signal_date, is_manual, created_at
+                      signal_date, is_manual, signal_type, created_at
                FROM signals
                WHERE thesis_id = ? AND created_at >= ?
                ORDER BY strength DESC, confidence DESC
@@ -119,31 +119,31 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
                     source_url=r["source_url"],
                     signal_date=r["signal_date"],
                     is_manual=bool(r["is_manual"]),
+                    signal_type=r["signal_type"] or "news",
                     created_at=r["created_at"],
                 )
             )
 
-        # 7-day signal count
+        # Per-thesis signal counts split by type (news vs data)
         week_ago = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
         count_cursor = await db.execute(
-            "SELECT COUNT(*) as cnt FROM signals WHERE thesis_id = ? AND signal_date >= ?",
+            """SELECT
+                 SUM(CASE WHEN signal_type='news'  THEN 1 ELSE 0 END) as news_7d,
+                 SUM(CASE WHEN signal_type='data'  THEN 1 ELSE 0 END) as data_7d
+               FROM signals WHERE thesis_id = ? AND signal_date >= ?""",
             (tid, week_ago),
         )
         count_row = await count_cursor.fetchone()
-        signal_count_7d = count_row["cnt"]
 
-        # Supporting percentage
-        sup_cursor = await db.execute(
+        # 24h signal counts split by type
+        count_24h_cursor = await db.execute(
             """SELECT
-                 COUNT(*) as total,
-                 SUM(CASE WHEN direction='supporting' THEN 1 ELSE 0 END) as sup
-               FROM signals WHERE thesis_id = ?""",
-            (tid,),
+                 SUM(CASE WHEN signal_type='news'  THEN 1 ELSE 0 END) as news_24h,
+                 SUM(CASE WHEN signal_type='data'  THEN 1 ELSE 0 END) as data_24h
+               FROM signals WHERE thesis_id = ? AND created_at >= ?""",
+            (tid, cutoff_24h),
         )
-        sup_row = await sup_cursor.fetchone()
-        total = sup_row["total"] or 0
-        sup = sup_row["sup"] or 0
-        supporting_pct = (sup / total * 100) if total > 0 else 50.0
+        count_24h_row = await count_24h_cursor.fetchone()
 
         thesis_data.append(
             ThesisDashboardData(
@@ -155,8 +155,10 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
                 score_trend=trend_dir,
                 trend_data=[TrendPoint(**p) for p in trend_data],
                 recent_signals=recent_signals,
-                signal_count_7d=signal_count_7d,
-                supporting_pct=round(supporting_pct, 1),
+                news_signals_7d=count_row["news_7d"] or 0,
+                news_signals_24h=count_24h_row["news_24h"] or 0,
+                data_signals_7d=count_row["data_7d"] or 0,
+                data_signals_24h=count_24h_row["data_24h"] or 0,
             )
         )
 
@@ -164,8 +166,14 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
     art_cursor = await db.execute("SELECT COUNT(*) as cnt FROM articles")
     art_count = (await art_cursor.fetchone())["cnt"]
 
-    sig_total_cursor = await db.execute("SELECT COUNT(*) as cnt FROM signals")
-    sig_total = (await sig_total_cursor.fetchone())["cnt"]
+    # Signal totals split by type
+    sig_split_cursor = await db.execute(
+        """SELECT
+             SUM(CASE WHEN signal_type='news'  THEN 1 ELSE 0 END) as news_total,
+             SUM(CASE WHEN signal_type='data'  THEN 1 ELSE 0 END) as data_total
+           FROM signals"""
+    )
+    sig_split = await sig_split_cursor.fetchone()
 
     # 24-hour counts
     cutoff_global_24h = (datetime.utcnow() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
@@ -177,10 +185,23 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
     art_24h = (await art_24h_cursor.fetchone())["cnt"]
 
     sig_24h_cursor = await db.execute(
-        "SELECT COUNT(*) as cnt FROM signals WHERE created_at >= ?",
+        """SELECT
+             SUM(CASE WHEN signal_type='news'  THEN 1 ELSE 0 END) as news_24h,
+             SUM(CASE WHEN signal_type='data'  THEN 1 ELSE 0 END) as data_24h
+           FROM signals WHERE created_at >= ?""",
         (cutoff_global_24h,),
     )
-    sig_24h = (await sig_24h_cursor.fetchone())["cnt"]
+    sig_24h = await sig_24h_cursor.fetchone()
+
+    # Data point totals
+    dp_cursor = await db.execute("SELECT COUNT(*) as cnt FROM data_points")
+    dp_total = (await dp_cursor.fetchone())["cnt"]
+
+    dp_24h_cursor = await db.execute(
+        "SELECT COUNT(*) as cnt FROM data_points WHERE fetched_at >= ?",
+        (cutoff_global_24h,),
+    )
+    dp_24h = (await dp_24h_cursor.fetchone())["cnt"]
 
     last_cursor = await db.execute(
         "SELECT last_fetched_at FROM sources WHERE last_fetched_at IS NOT NULL ORDER BY last_fetched_at DESC LIMIT 1"
@@ -198,7 +219,11 @@ async def get_dashboard(request: Request, days: int = Query(default=30, ge=7, le
         last_ingestion=last_row["last_fetched_at"] if last_row else None,
         last_data_fetch=ds_row["last_fetched_at"] if ds_row else None,
         total_articles=art_count,
-        total_signals=sig_total,
+        total_news_signals=sig_split["news_total"] or 0,
+        total_data_signals=sig_split["data_total"] or 0,
+        news_signals_24h=sig_24h["news_24h"] or 0,
+        data_signals_24h=sig_24h["data_24h"] or 0,
         articles_24h=art_24h,
-        signals_24h=sig_24h,
+        total_data_points=dp_total,
+        data_points_24h=dp_24h,
     )

@@ -26,9 +26,13 @@ function App() {
         lastIngestion={data?.last_ingestion ?? null}
         lastDataFetch={data?.last_data_fetch ?? null}
         totalArticles={data?.total_articles ?? 0}
-        totalSignals={data?.total_signals ?? 0}
         articles24h={data?.articles_24h ?? 0}
-        signals24h={data?.signals_24h ?? 0}
+        totalDataPoints={data?.total_data_points ?? 0}
+        dataPoints24h={data?.data_points_24h ?? 0}
+        totalNewsSignals={data?.total_news_signals ?? 0}
+        newsSignals24h={data?.news_signals_24h ?? 0}
+        totalDataSignals={data?.total_data_signals ?? 0}
+        dataSignals24h={data?.data_signals_24h ?? 0}
         onRefresh={handleRefresh}
         isRefreshing={refreshAll.isPending}
       />

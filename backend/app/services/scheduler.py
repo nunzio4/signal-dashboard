@@ -65,6 +65,15 @@ def create_scheduler(db) -> AsyncIOScheduler:
         except Exception as e:
             logger.error(f"Data series fetch error: {e}")
 
+        # Generate data signals from the updated data points
+        try:
+            from app.services.data_signals import DataSignalGenerator
+            generator = DataSignalGenerator(db)
+            ds_stats = await generator.generate_all()
+            logger.info(f"Data signal generation complete: {ds_stats}")
+        except Exception as e:
+            logger.error(f"Data signal generation error: {e}")
+
     scheduler.add_job(
         run_data_series,
         "interval",

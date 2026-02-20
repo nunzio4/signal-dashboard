@@ -16,6 +16,7 @@ export interface Signal {
   source_url: string | null;
   signal_date: string;
   is_manual: boolean;
+  signal_type: "news" | "data";
   created_at: string | null;
 }
 
@@ -28,8 +29,10 @@ export interface ThesisDashboardData {
   score_trend: "rising" | "falling" | "stable";
   trend_data: TrendPoint[];
   recent_signals: Signal[];
-  signal_count_7d: number;
-  supporting_pct: number;
+  news_signals_7d: number;
+  news_signals_24h: number;
+  data_signals_7d: number;
+  data_signals_24h: number;
 }
 
 export interface DashboardResponse {
@@ -37,9 +40,13 @@ export interface DashboardResponse {
   last_ingestion: string | null;
   last_data_fetch: string | null;
   total_articles: number;
-  total_signals: number;
+  total_news_signals: number;
+  total_data_signals: number;
+  news_signals_24h: number;
+  data_signals_24h: number;
   articles_24h: number;
-  signals_24h: number;
+  total_data_points: number;
+  data_points_24h: number;
 }
 
 export interface ManualSignalCreate {

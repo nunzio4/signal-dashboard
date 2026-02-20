@@ -108,6 +108,7 @@ class SignalResponse(BaseModel):
     source_url: str | None
     signal_date: str
     is_manual: bool
+    signal_type: str = "news"
     created_at: str | None = None
 
 
@@ -126,8 +127,10 @@ class ThesisDashboardData(BaseModel):
     score_trend: str  # 'rising', 'falling', 'stable'
     trend_data: list[TrendPoint]
     recent_signals: list[SignalResponse]
-    signal_count_7d: int
-    supporting_pct: float
+    news_signals_7d: int
+    news_signals_24h: int
+    data_signals_7d: int
+    data_signals_24h: int
 
 
 class DashboardResponse(BaseModel):
@@ -135,9 +138,13 @@ class DashboardResponse(BaseModel):
     last_ingestion: str | None
     last_data_fetch: str | None
     total_articles: int
-    total_signals: int
+    total_news_signals: int
+    total_data_signals: int
+    news_signals_24h: int
+    data_signals_24h: int
     articles_24h: int
-    signals_24h: int
+    total_data_points: int
+    data_points_24h: int
 
 
 class SourceResponse(BaseModel):
