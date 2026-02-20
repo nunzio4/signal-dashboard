@@ -145,14 +145,15 @@ async def health(request: Request):
             row4 = await cur4.fetchone()
             diag["articles"] = row4["c"]
 
-        # Check if seed file exists
-        from app.config import settings
-        backend_dir = Path(settings.static_dir).parent
-        seed_path = backend_dir / "seed_data.json"
-        diag["seed_file_exists"] = seed_path.exists()
+        # Check if seed.db exists
+        backend_dir = Path(__file__).resolve().parent.parent
+        seed_path = backend_dir / "seed.db"
+        diag["seed_db_exists"] = seed_path.exists()
         if seed_path.exists():
-            diag["seed_file_size_kb"] = seed_path.stat().st_size // 1024
-        diag["backend_dir"] = str(backend_dir)
+            diag["seed_db_size_kb"] = seed_path.stat().st_size // 1024
+        from app.config import settings
+        diag["db_path"] = str(settings.db_path)
+        diag["db_exists"] = settings.db_path.exists()
     except Exception as e:
         diag["diag_error"] = str(e)
     return diag

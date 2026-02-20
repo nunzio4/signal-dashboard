@@ -1,7 +1,14 @@
+import logging
+import shutil
+
 import aiosqlite
 import json
 from pathlib import Path
 from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+_backend_dir = Path(__file__).resolve().parent.parent  # backend/
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS theses (
@@ -146,9 +153,25 @@ SEED_THESES = [
 ]
 
 
+def _maybe_copy_seed_db():
+    """If the working database doesn't exist, copy from seed.db if available."""
+    db_path = settings.db_path
+    seed_path = _backend_dir / "seed.db"
+
+    if not db_path.exists() and seed_path.exists():
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(seed_path), str(db_path))
+        logger.info(f"Copied seed database ({seed_path.stat().st_size // 1024} KB) to {db_path}")
+    elif not db_path.exists():
+        logger.info("No seed.db found, starting with empty database")
+    else:
+        logger.info(f"Using existing database at {db_path}")
+
+
 async def get_db() -> aiosqlite.Connection:
     db_path = settings.db_path
     db_path.parent.mkdir(parents=True, exist_ok=True)
+    _maybe_copy_seed_db()
     db = await aiosqlite.connect(str(db_path))
     db.row_factory = aiosqlite.Row
     await db.execute("PRAGMA journal_mode=WAL")
@@ -465,120 +488,5 @@ async def seed_sources(db: aiosqlite.Connection):
 
 
 async def load_seed_data(db: aiosqlite.Connection):
-    """Load historical data from seed_data.json on first run (production deploy).
-
-    Seeds: daily_scores (trend charts), recent signals + articles (evidence cards),
-    and data_points (data series charts). Skips if seed data already loaded.
-    """
-    import logging
-    logger = logging.getLogger(__name__)
-
-    # Check if we already have seed data loaded (use data_points as the indicator
-    # since it's only populated by the seed or the data fetcher, not by other jobs)
-    cursor = await db.execute("SELECT COUNT(*) as cnt FROM data_points")
-    row = await cursor.fetchone()
-    if row["cnt"] > 0:
-        logger.info(f"Database already has {row['cnt']} data points, skipping seed")
-        return
-
-    # Find the seed file
-    seed_path = _backend_dir / "seed_data.json"
-    if not seed_path.exists():
-        logger.info(f"No seed_data.json found at {seed_path}, starting fresh")
-        return
-
-    file_size = seed_path.stat().st_size // 1024
-    logger.info(f"Loading seed data from {seed_path} ({file_size} KB)...")
-    try:
-        raw = seed_path.read_text(encoding="utf-8")
-        data = json.loads(raw)
-    except Exception as e:
-        logger.error(f"Failed to parse seed_data.json: {e}")
-        return
-
-    # Use executemany for bulk loading — much faster and more reliable
-    # 1. Daily scores (trend charts) — load FIRST since nothing depends on them
-    scores = data.get("daily_scores", [])
-    if scores:
-        try:
-            await db.executemany(
-                """INSERT OR REPLACE INTO daily_scores
-                   (id, thesis_id, score_date, composite_score, signal_count,
-                    supporting_count, weakening_count, computed_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                [(ds.get("id"), ds.get("thesis_id"), ds.get("score_date"),
-                  ds.get("composite_score"), ds.get("signal_count"),
-                  ds.get("supporting_count"), ds.get("weakening_count"),
-                  ds.get("computed_at", ""))
-                 for ds in scores],
-            )
-            logger.info(f"  Loaded {len(scores)} daily scores")
-        except Exception as e:
-            logger.error(f"  Failed to load daily_scores: {e}")
-
-    # 2. Data points (data series charts)
-    points = data.get("data_points", [])
-    if points:
-        try:
-            await db.executemany(
-                """INSERT OR REPLACE INTO data_points
-                   (series_id, date, value, fetched_at)
-                   VALUES (?, ?, ?, ?)""",
-                [(dp.get("series_id"), dp.get("date"),
-                  dp.get("value"), dp.get("fetched_at", ""))
-                 for dp in points],
-            )
-            logger.info(f"  Loaded {len(points)} data points")
-        except Exception as e:
-            logger.error(f"  Failed to load data_points: {e}")
-
-    # 3. Articles (must go before signals — signals reference them)
-    articles = data.get("articles", [])
-    if articles:
-        try:
-            await db.executemany(
-                """INSERT OR REPLACE INTO articles
-                   (id, source_id, external_id, title, url, author, content,
-                    published_at, ingested_at, analysis_status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                [(a.get("id"), a.get("source_id"), a.get("external_id"),
-                  a.get("title", ""), a.get("url"), a.get("author"),
-                  a.get("content"), a.get("published_at"),
-                  a.get("ingested_at", ""), a.get("analysis_status", "analyzed"))
-                 for a in articles],
-            )
-            logger.info(f"  Loaded {len(articles)} articles")
-        except Exception as e:
-            logger.error(f"  Failed to load articles: {e}")
-
-    # 4. Signals
-    signals = data.get("signals", [])
-    if signals:
-        try:
-            await db.executemany(
-                """INSERT OR REPLACE INTO signals
-                   (id, article_id, thesis_id, direction, strength, confidence,
-                    evidence_quote, reasoning, source_title, source_url,
-                    signal_date, created_at, is_manual)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                [(s.get("id"), s.get("article_id"), s.get("thesis_id"),
-                  s.get("direction"), s.get("strength"), s.get("confidence"),
-                  s.get("evidence_quote", ""), s.get("reasoning", ""),
-                  s.get("source_title"), s.get("source_url"),
-                  s.get("signal_date"), s.get("created_at", ""),
-                  s.get("is_manual", 0))
-                 for s in signals],
-            )
-            logger.info(f"  Loaded {len(signals)} signals")
-        except Exception as e:
-            logger.error(f"  Failed to load signals: {e}")
-
-    await db.commit()
-
-    # Verify what we loaded
-    for table in ["daily_scores", "signals", "data_points", "articles"]:
-        cur = await db.execute(f"SELECT COUNT(*) as c FROM {table}")
-        r = await cur.fetchone()
-        logger.info(f"  Verify {table}: {r['c']} rows")
-
-    logger.info("Seed data loading complete!")
+    """No-op — seed data is now loaded via seed.db copy in get_db()."""
+    pass
