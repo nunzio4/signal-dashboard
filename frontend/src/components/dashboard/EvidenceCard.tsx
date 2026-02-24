@@ -1,6 +1,6 @@
 import type { Signal } from "../../types";
 import { getStrengthColor, getDirectionColor } from "../../utils/colors";
-import { formatRelativeDate } from "../../utils/formatting";
+import { formatSignalDate } from "../../utils/formatting";
 
 interface EvidenceCardProps {
   signal: Signal;
@@ -28,7 +28,7 @@ export function EvidenceCard({ signal }: EvidenceCardProps) {
         </span>
         {signal.is_manual && <span className="manual-badge">Manual</span>}
         <time className="evidence-date" title={signal.signal_date}>
-          {formatRelativeDate(signal.signal_date)}
+          {formatSignalDate(signal.signal_date)}
         </time>
       </div>
 

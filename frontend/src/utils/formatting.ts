@@ -27,6 +27,33 @@ export function formatAbsoluteDate(dateStr: string): string {
   }
 }
 
+/**
+ * Format a signal_date for display. Signal dates are often date-only
+ * ("2026-02-24") with no time, so relative formatting ("23 hours ago")
+ * is misleading. Instead show "Today", "Yesterday", or "Feb 24".
+ */
+export function formatSignalDate(dateStr: string): string {
+  try {
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim());
+    if (isDateOnly) {
+      const today = new Date();
+      const todayStr = today.toISOString().slice(0, 10);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+      if (dateStr === todayStr) return "Today";
+      if (dateStr === yesterdayStr) return "Yesterday";
+      return format(parseISO(dateStr), "MMM d");
+    }
+    // Has a time component — use relative formatting
+    const date = parseUTC(dateStr);
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch {
+    return dateStr;
+  }
+}
+
 export function formatShortDate(dateStr: string): string {
   try {
     const date = parseISO(dateStr);
