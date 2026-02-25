@@ -6,3 +6,8 @@ healthcheckPath = "/api/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+
+# Persistent volume for SQLite database — survives across deploys
+[[mounts]]
+source = "signals_data"
+dest = "/app/data"

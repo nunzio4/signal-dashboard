@@ -135,7 +135,7 @@ async def analytics_digest(
 
     # Hourly breakdown (for multi-hour windows)
     hourly_cursor = await db.execute(
-        """SELECT strftime('%%Y-%%m-%%d %%H:00', created_at) as hour,
+        """SELECT strftime('%Y-%m-%d %H:00', created_at) as hour,
                   COUNT(*) as views,
                   COUNT(DISTINCT visitor_id) as visitors
            FROM page_views WHERE created_at >= ?

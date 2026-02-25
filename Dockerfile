@@ -20,12 +20,20 @@ COPY backend/ ./
 # Copy built frontend into backend/static
 COPY --from=frontend-build /app/frontend/dist ./static
 
-# Create data directory for SQLite
-RUN mkdir -p data
-
 # Railway sets PORT env var
 ENV PORT=8000
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
+# At runtime: the Railway volume is mounted at /app/data.
+# If no database exists yet (first deploy or volume wipe), copy the
+# seed database so the app starts with historical data.
+CMD ["sh", "-c", "\
+  mkdir -p /app/data && \
+  if [ ! -f /app/data/signals.db ]; then \
+    echo 'No database found on volume — seeding from seed.db'; \
+    cp /app/seed.db /app/data/signals.db; \
+  else \
+    echo 'Existing database found on volume — preserving data'; \
+  fi && \
+  uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
