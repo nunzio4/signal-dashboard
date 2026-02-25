@@ -28,7 +28,7 @@ export function EvidenceCard({ signal }: EvidenceCardProps) {
         </span>
         {signal.is_manual && <span className="manual-badge">Manual</span>}
         <time className="evidence-date" title={signal.signal_date}>
-          {formatSignalDate(signal.signal_date)}
+          {formatSignalDate(signal.created_at ?? signal.signal_date)}
         </time>
       </div>
 
