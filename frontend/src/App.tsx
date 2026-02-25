@@ -6,12 +6,13 @@ import { DashboardGrid } from "./components/dashboard/DashboardGrid";
 import { ManualSignalForm } from "./components/signals/ManualSignalForm";
 import { FeedManager } from "./components/feeds/FeedManager";
 import { DataSeriesManager } from "./components/feeds/DataSeriesManager";
+import { AnalyticsPage } from "./components/analytics/AnalyticsPage";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? (
   import.meta.env.DEV ? "http://localhost:8000" : ""
 );
 
-type Tab = "dashboard" | "feeds" | "data-series";
+type Tab = "dashboard" | "feeds" | "data-series" | "analytics";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
@@ -62,6 +63,12 @@ function App() {
         >
           <span className="tab-icon">&#9636;</span> Data Series
         </button>
+        <button
+          className={`tab-btn ${activeTab === "analytics" ? "tab-btn--active" : ""}`}
+          onClick={() => setActiveTab("analytics")}
+        >
+          <span className="tab-icon">&#9652;</span> Analytics
+        </button>
       </nav>
 
       <main className="app-main">
@@ -106,6 +113,7 @@ function App() {
 
         {activeTab === "feeds" && <FeedManager />}
         {activeTab === "data-series" && <DataSeriesManager />}
+        {activeTab === "analytics" && <AnalyticsPage />}
       </main>
     </AppShell>
   );

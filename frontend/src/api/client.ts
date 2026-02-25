@@ -18,7 +18,7 @@ const client = axios.create({
  * Get the admin API key from sessionStorage.
  * If not set, prompt the user for it (happens once per browser session).
  */
-function getAdminKey(): string {
+export function getAdminKey(): string {
   let key = sessionStorage.getItem("admin_api_key");
   if (!key) {
     key = window.prompt("Admin API key required for this action:") ?? "";

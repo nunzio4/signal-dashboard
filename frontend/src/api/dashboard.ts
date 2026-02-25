@@ -88,3 +88,51 @@ export async function triggerDataSeriesFetch(): Promise<unknown> {
   const { data } = await client.post("/data-series/fetch");
   return data;
 }
+
+// ── Analytics API (requires admin key on GET) ──
+
+export interface AnalyticsLog {
+  id: number;
+  visitor_id: string;
+  ip: string;
+  path: string;
+  user_agent: string;
+  referer: string;
+  referer_domain: string;
+  timestamp: string;
+}
+
+export interface AnalyticsLogsResponse {
+  period_hours: number;
+  cutoff: string;
+  count: number;
+  logs: AnalyticsLog[];
+}
+
+export interface AnalyticsDigestResponse {
+  period_hours: number;
+  cutoff: string;
+  unique_visitors: number;
+  total_views: number;
+  top_pages: { path: string; views: number; visitors: number }[];
+  top_referrer_domains: { domain: string; views: number; visitors: number }[];
+  top_referrer_urls: { url: string; visitors: number }[];
+  hourly_breakdown: { hour: string; views: number; visitors: number }[];
+  all_time: { unique_visitors: number; total_views: number };
+}
+
+export async function fetchAnalyticsLogs(hours: number, limit: number, apiKey: string): Promise<AnalyticsLogsResponse> {
+  const { data } = await client.get<AnalyticsLogsResponse>("/analytics/logs", {
+    params: { hours, limit },
+    headers: { "X-API-Key": apiKey },
+  });
+  return data;
+}
+
+export async function fetchAnalyticsDigest(hours: number, apiKey: string): Promise<AnalyticsDigestResponse> {
+  const { data } = await client.get<AnalyticsDigestResponse>("/analytics/digest", {
+    params: { hours },
+    headers: { "X-API-Key": apiKey },
+  });
+  return data;
+}
