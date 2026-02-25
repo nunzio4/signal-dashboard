@@ -70,6 +70,51 @@ async def tracking_pixel(request: Request, path: str = "/"):
     )
 
 
+@router.get("/logs")
+async def analytics_logs(
+    request: Request,
+    hours: int = Query(default=24, ge=1, le=8760),
+    limit: int = Query(default=200, ge=1, le=1000),
+):
+    """
+    Raw page view log. Returns individual hits with visitor ID, IP,
+    path, user agent, referrer domain, and timestamp.
+    Requires admin API key.
+    """
+    db = request.app.state.db
+    cutoff = (datetime.utcnow() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+
+    cursor = await db.execute(
+        """SELECT id, visitor_id, ip_addr, path, user_agent,
+                  referer, referer_domain, created_at
+           FROM page_views
+           WHERE created_at >= ?
+           ORDER BY created_at DESC
+           LIMIT ?""",
+        (cutoff, limit),
+    )
+    rows = await cursor.fetchall()
+
+    return {
+        "period_hours": hours,
+        "cutoff": cutoff,
+        "count": len(rows),
+        "logs": [
+            {
+                "id": r["id"],
+                "visitor_id": r["visitor_id"],
+                "ip": r["ip_addr"],
+                "path": r["path"],
+                "user_agent": r["user_agent"],
+                "referer": r["referer"],
+                "referer_domain": r["referer_domain"],
+                "timestamp": r["created_at"],
+            }
+            for r in rows
+        ],
+    }
+
+
 @router.get("/digest")
 async def analytics_digest(
     request: Request,

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 # GET paths that still require admin API key
-ADMIN_GET_PATHS = {"/api/analytics/digest"}
+ADMIN_GET_PATHS = {"/api/analytics/digest", "/api/analytics/logs"}
 
 # ── Rate limiting for auth failures ──
 # Track failed auth attempts per IP: {ip: [(timestamp, ...), ...]}
